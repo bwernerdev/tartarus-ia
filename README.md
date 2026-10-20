@@ -23,14 +23,16 @@ straight from the author's GitHub and applies only the changes kept here
 
 ## Install
 
-1. Install the official **Tartarus Overlay** first, from the author's
-   [releases page](https://github.com/blahdot3h/tartarus-simulator/releases/latest),
-   and set it up once (agree to the screenshot terms).
-2. Download **[TartarusAI.exe](https://github.com/bwernerdev/tartarus-ia/raw/main/TartarusAI.exe)**
+1. Download **[TartarusAI.exe](https://github.com/bwernerdev/tartarus-ia/raw/main/TartarusAI.exe)**
    and open it. Windows may warn that it's from an unknown publisher: click
    **More info**, then **Run anyway**.
+2. If the official **Tartarus Overlay** isn't installed yet, Tartarus AI offers
+   to install it: it downloads the newest installer from the author's
+   [releases page](https://github.com/blahdot3h/tartarus-simulator/releases/latest)
+   (about 120 MB), checks it against the release's SHA-512, and installs it.
 3. It installs itself in `%LOCALAPPDATA%\TartarusAI`, puts a **Tartarus AI**
-   shortcut on the desktop, and opens the overlay.
+   shortcut on the desktop, and opens the overlay. The first time, the
+   overlay asks you to agree to its screenshot terms.
 
 From then on, open **Tartarus AI** from the desktop instead of the Tartarus
 Overlay. Its icon sits by the clock while the overlay is open, and it closes
