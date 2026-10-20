@@ -208,7 +208,7 @@ index a6c9f4e..c3c9bc6 100644
        toast,
      };
 diff --git a/js/capture.js b/js/capture.js
-index 730c0b3..35baeab 100644
+index 730c0b3..5cf71bf 100644
 --- a/js/capture.js
 +++ b/js/capture.js
 @@ -18,7 +18,7 @@
@@ -220,7 +220,7 @@ index 730c0b3..35baeab 100644
    const IDB = 'tartarus-sim-capture';
    const listeners = { status: [], hit: [], seen: [], frame: [] };
    // detail: whether the game writes the detail lines the triggers come from
-@@ -305,6 +305,105 @@
+@@ -305,6 +305,115 @@
      if (burst.hits.length < 40) burst.hits.push({ kind: hit.kind, at: hit.at, text: hit.text });
      clearTimeout(burst.timer);
      burst.timer = setTimeout(fire, burst.settle);
@@ -236,7 +236,11 @@ index 730c0b3..35baeab 100644
 +  // than before. Off with localStorage 'tartarus-local:early-picture' = '0'.
 +  // The last 40 tries are kept in 'tartarus-local:early-stats', for tuning.
 +  // Lite (window.TARTARUS_LITE): a frame every 200 ms instead of 120.
-+  const STILL = { from: 250, every: window.TARTARUS_LITE ? 200 : 120, need: 2, diff: 1.2, w: 64, h: 36 };
++  // still: a screen that hasn't moved since the log line (its animation was
++  // over before the line came: 2026-10-20's stats, a third of the pictures
++  // left to the usual time) goes after `still` alike frames in a row
++  // (about half a second); the usual-time picture still checks it.
++  const STILL = { from: 250, every: window.TARTARUS_LITE ? 200 : 120, need: 2, still: 4, diff: 1.2, w: 64, h: 36 };
 +  let sketchCanvas = null;
 +  function sketch(frame) {
 +    if (!sketchCanvas) {
@@ -282,16 +286,21 @@ index 730c0b3..35baeab 100644
 +    let alike = 0;
 +    let moved = false;
 +    let lines = b.hits.length;
-+    const stop = () => {
++    // Why it stopped without an early picture, for the stats.
++    const stop = (why) => {
 +      b.watching = false;
++      if (why && !b.stats.stop) b.stats.stop = why;
 +    };
 +    const look = async () => {
-+      if (burst !== b || b.early || b.kind !== 'board' || treasureBoard(b)) return stop();
++      if (burst !== b) return stop('fired');
++      if (b.early) return stop();
++      if (b.kind !== 'board') return stop(`kind ${b.kind}`);
++      if (treasureBoard(b)) return stop('treasure');
 +      const frame = await grab();
-+      if (!frame) return stop();
++      if (!frame) return stop(`no frame: ${lastWhy || 'none'}`);
 +      if (burst !== b) {
 +        frame.close();
-+        return stop();
++        return stop('fired');
 +      }
 +      let now = null;
 +      try {
@@ -301,7 +310,7 @@ index 730c0b3..35baeab 100644
 +      }
 +      if (!now) {
 +        frame.close();
-+        return stop();
++        return stop('no sketch');
 +      }
 +      const diff = last ? apart(now, last) : 0;
 +      if (last && b.stats.diffs.length < 30) b.stats.diffs.push(Math.round(diff * 10) / 10);
@@ -312,9 +321,10 @@ index 730c0b3..35baeab 100644
 +        alike = 0;
 +      } else alike = last && diff <= STILL.diff ? alike + 1 : 0;
 +      last = now;
-+      if (moved && alike >= STILL.need && !isBlank(frame)) {
++      if (alike >= (moved ? STILL.need : STILL.still) && !isBlank(frame)) {
 +        b.early = now;
 +        b.stats.waited = Date.now() - b.stats.started;
++        b.stats.moved = moved;
 +        setState({ frames: state.frames + 1 });
 +        emit('frame', { kind: b.kind, hits: b.hits.slice(), frame, blank: false, why: '', time: new Date(), early: true });
 +        return;
@@ -326,7 +336,7 @@ index 730c0b3..35baeab 100644
    }
  
    async function fire() {
-@@ -312,6 +411,20 @@
+@@ -312,6 +421,20 @@
      burst = null;
      if (!b) return;
      const frame = await grab();
@@ -399,10 +409,10 @@ index f5cacd5..65b4b24 100644
      if (m.asked) c.asked = true;
      renderCaptures();
 diff --git a/js/scan.js b/js/scan.js
-index 7d44f04..4916363 100644
+index 7d44f04..318c24a 100644
 --- a/js/scan.js
 +++ b/js/scan.js
-@@ -263,6 +263,10 @@
+@@ -263,6 +263,18 @@
      if (hint && hint.w === W && hint.h === H) {
        const was = { s: hint.s, tx: hint.tx, ty: hint.ty, score: score(levels[0], hint.s, hint.tx, hint.ty, false) };
        if (was.score >= 0.81 && was.score >= hint.score - 0.05) return Object.assign(grid(was, levels[0], 0.0025, 3, 0.5, 3), { hinted: true });
@@ -410,10 +420,28 @@ index 7d44f04..4916363 100644
 +      // decision's overlay): every place matches as weakly, so the caller
 +      // places the board by its cell numbers instead of searching (2 s).
 +      if (opts.quick && was.score < 0.65) return Object.assign(was, { weak: true });
++      // Local build: the board is there but matches less than the last one:
++      // searched first at the scales near the last one's (the window kept
++      // its size), and over every scale only if that finds no board (0.65,
++      // the least the reader takes a board's frame at).
++      if (opts.quick && !opts.near) {
++        const near = locateBoard(img, gray, ref, Object.assign({}, opts, { hint: null, near: hint.s }));
++        if (near && near.score >= 0.65) return near;
++      }
      }
      while (levels[levels.length - 1].w > 120 && levels[levels.length - 1].h > 60) {
        const l = levels[levels.length - 1];
-@@ -2068,8 +2072,15 @@
+@@ -319,7 +331,8 @@
+     for (let s = sMin; s <= sMax; s *= 1.05) scales.push(s);
+     for (let s = sMin / 1.05; s >= sLow; s /= 1.05) scales.push(s);
+     const top = [];
+-    for (const s of scales) {
++    const near = opts && opts.near;
++    for (const s of near ? scales.filter((x) => x >= near / 1.12 && x <= near * 1.12) : scales) {
+       // The coarsest level that still shows the frame's detail.
+       let L = 0;
+       while (L + 1 < levels.length && s / levels[L + 1].f >= 0.2) L += 1;
+@@ -2068,8 +2081,15 @@
      const gray = grayOf(img);
      const sharp = blur(gray, img.width, img.height, 1);
      const cache = opts && opts.cache;
