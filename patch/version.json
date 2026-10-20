@@ -1,5 +1,5 @@
 {
-  "version": "55acc46c79",
+  "version": "14640d6087",
   "base": "50dac4429916860e093483a6524bd6504c1a7572",
   "exe": 3,
   "exeHash": "1b2d705577",
@@ -7,9 +7,10 @@
     "js/analyze.js",
     "js/capture.js",
     "js/follow.js",
+    "js/scan-worker.js",
     "js/scan.js",
     "js/solver.js",
     "js/tool-combos.js"
   ],
-  "at": "2026-10-20T21:22:46.361Z"
+  "at": "2026-10-20T21:28:31.117Z"
 }

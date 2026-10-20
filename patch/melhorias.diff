@@ -1,5 +1,5 @@
 diff --git a/js/analyze.js b/js/analyze.js
-index a6c9f4e..3b8232e 100644
+index a6c9f4e..81f5f21 100644
 --- a/js/analyze.js
 +++ b/js/analyze.js
 @@ -44,15 +44,32 @@
@@ -213,7 +213,55 @@ index a6c9f4e..3b8232e 100644
          : 'Each option is played out from your board with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are Rainbows in the vault by the end of the run.';
    }
  
-@@ -3396,14 +3488,15 @@
+@@ -1846,10 +1938,34 @@
+     if (reader.worker) {
+       const copy = imageData.data.slice().buffer;
+       // lang: the game's language, for its door cards (see TartarusScan.scan).
+-      reader.worker.postMessage({ id, width: imageData.width, height: imageData.height, buffer: copy, lang: gameLang }, [copy]);
++      // hint (local build): where the board was last time, kept across reloads.
++      reader.worker.postMessage({ id, width: imageData.width, height: imageData.height, buffer: copy, lang: gameLang, hint: boardPlace() }, [copy]);
+     } else scanHere(imageData, id, done);
+   }
+ 
++  // Local build: where the board was in the last picture read, kept in the
++  // browser, so the first picture after the page reloads (a run's end, a
++  // new version) is found where the last one was, as every later one is,
++  // instead of searching every scale (2 to 3 s). The reader takes it only
++  // while it has no place of its own, and only for a picture of that size.
++  const PLACE_KEY = 'tartarus-local:board-place';
++  function boardPlace() {
++    try {
++      return JSON.parse(localStorage.getItem(PLACE_KEY) || 'null');
++    } catch (e) {
++      return null;
++    }
++  }
++  function keepBoardPlace(result, w, h) {
++    const loc = result && result.ok && result.loc;
++    if (!loc || loc.byLabels || !(loc.score >= 0.81)) return;
++    try {
++      localStorage.setItem(PLACE_KEY, JSON.stringify({ w, h, s: loc.s, tx: loc.tx, ty: loc.ty, score: loc.score }));
++    } catch (e) {
++      // Without storage, the first picture searches as before.
++    }
++  }
++
+   // The reader's worker, started the first time it's needed. Readings of
+   // the instrument pick answer through reader.picks, boards through
+   // reader.pending.
+@@ -1865,7 +1981,10 @@
+             return;
+           }
+           const p = reader.pending;
+-          if (p && e.data.id === p.id) p.done(e.data.result, e.data.error);
++          if (p && e.data.id === p.id) {
++            keepBoardPlace(e.data.result, p.imageData.width, p.imageData.height);
++            p.done(e.data.result, e.data.error);
++          }
+         };
+         reader.worker.onerror = () => {
+           reader.failed = true;
+@@ -3396,14 +3515,15 @@
        },
        useReading: () => useScan(),
        ask: () => ask(true),
@@ -432,6 +480,25 @@ index f5cacd5..65b4b24 100644
      if (m.state) c.state = m.state;
      if (m.asked) c.asked = true;
      renderCaptures();
+diff --git a/js/scan-worker.js b/js/scan-worker.js
+index 71f9b93..e6b6644 100644
+--- a/js/scan-worker.js
++++ b/js/scan-worker.js
+@@ -11,9 +11,13 @@ importScripts(`scan.js${self.location.search}`, `scan-data.js${self.location.sea
+ const cache = {};
+ 
+ self.onmessage = (e) => {
+-  const { id, kind, width, height, buffer, lang } = e.data;
++  const { id, kind, width, height, buffer, lang, hint } = e.data;
+   try {
+     const img = { width, height, data: new Uint8ClampedArray(buffer) };
++    // Local build: the page's saved place, while this worker has none of its
++    // own (the first picture after a reload); the scan takes it only for a
++    // picture of the same size.
++    if (hint && !cache.loc) cache.loc = hint;
+     if (kind === 'objective') {
+       self.postMessage({ id, kind, result: self.TartarusScan.readObjectiveTitle(img) });
+       return;
 diff --git a/js/scan.js b/js/scan.js
 index 7d44f04..318c24a 100644
 --- a/js/scan.js
