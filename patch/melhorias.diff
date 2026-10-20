@@ -347,6 +347,57 @@ index 730c0b3..35baeab 100644
      if (frame) setState({ frames: state.frames + 1 });
      emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
    }
+diff --git a/js/follow.js b/js/follow.js
+index f5cacd5..65b4b24 100644
+--- a/js/follow.js
++++ b/js/follow.js
+@@ -433,8 +433,28 @@
+   // in another tab of this browser, which reads it into the board (see
+   // js/auto.js). It goes by the browser's BroadcastChannel, which reaches
+   // only this site's own pages in this browser. Nothing is uploaded.
++  // Local build: a picture that failed is taken again once, by itself, a
++  // moment later: none was taken (the window wasn't ready), or the reader
++  // found no board in it (taken mid-transition). The retake keeps the first
++  // one's log lines (a new run's offer stays a new run), and a retake that
++  // fails too is left as it is. A newer picture in between wins.
++  const RETAKE = { kinds: ['board', 'instruments', 'objective'], ms: 900 };
++  let retaking = null; // the log lines of the picture being taken again
++  function retake(c) {
++    if (c.retry || !RETAKE.kinds.includes(c.kind)) return;
++    setTimeout(() => {
++      if (captures[0] !== c) return;
++      retaking = { kind: c.kind, hits: c.hits };
++      C.captureNow(c.kind).catch(() => {}).then(() => {
++        retaking = null;
++      });
++    }, RETAKE.ms);
++  }
++
+   async function onFrame(f) {
+-    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '' };
++    const again = retaking && retaking.kind === f.kind ? retaking : null;
++    retaking = null;
++    const c = { id: nextId++, time: f.time, kind: f.kind, hits: again ? again.hits : f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '', retry: !!again };
+     lastPicture = { at: Date.now(), kind: c.kind, ok: c.frame, why: c.why };
+     tell();
+     captures.unshift(c);
+@@ -443,6 +463,7 @@
+       if (old.full) URL.revokeObjectURL(old.full);
+     }
+     if (!f.frame) {
++      retake(c);
+       // The Warden's Treasure needs no picture (every gift is on offer), so
+       // the analyzer hears of it anyway.
+       if (c.kind === 'treasure' && prefs.read) {
+@@ -491,6 +512,8 @@
+     const c = captures.find((x) => x.id === m.id);
+     if (!c) return;
+     if (m.read) c.read = m.read;
++    // No board found in it, or it couldn't be opened: once more.
++    if (m.read && !m.read.ok && !m.read.treasure && /no tartarus prison board|couldn.t be opened|not read/i.test(m.read.reason || '')) retake(c);
+     if (m.state) c.state = m.state;
+     if (m.asked) c.asked = true;
+     renderCaptures();
 diff --git a/js/solver.js b/js/solver.js
 index 8eaf093..b2463fb 100644
 --- a/js/solver.js

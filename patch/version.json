@@ -1,13 +1,14 @@
 {
-  "version": "0ef5718e70",
+  "version": "5876a04053",
   "base": "50dac4429916860e093483a6524bd6504c1a7572",
   "exe": 3,
   "exeHash": "1b2d705577",
   "files": [
     "js/analyze.js",
     "js/capture.js",
+    "js/follow.js",
     "js/solver.js",
     "js/tool-combos.js"
   ],
-  "at": "2026-10-20T06:36:36.769Z"
+  "at": "2026-10-20T06:45:16.832Z"
 }
