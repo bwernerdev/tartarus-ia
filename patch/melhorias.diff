@@ -1,5 +1,5 @@
 diff --git a/js/analyze.js b/js/analyze.js
-index c2aa2f8..e58955c 100644
+index a6c9f4e..c3c9bc6 100644
 --- a/js/analyze.js
 +++ b/js/analyze.js
 @@ -44,15 +44,32 @@
@@ -38,7 +38,7 @@ index c2aa2f8..e58955c 100644
    const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'ratway', 'choice'];
    const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick, or Cancel', event: 'A special event', ratway: 'Sewer Ratway: any cell', choice: 'A tool or gift' };
    const BEAST_KEYS = { m: 'mammoth', l: 'lion', w: 'wolf', r: 'rat' };
-@@ -477,16 +494,41 @@
+@@ -480,16 +497,41 @@
  
    // ---------- Analysis ----------
  
@@ -83,7 +83,7 @@ index c2aa2f8..e58955c 100644
    let idleTimer = 0;
    const poolBusy = () => !!(solver.workers && solver.shares && !solver.shares.every((s) => s.done));
    function releaseWorkers() {
-@@ -566,7 +608,7 @@
+@@ -569,7 +611,7 @@
        solver.instant = null;
      }
      const options = S.candidates(st).length;
@@ -92,7 +92,7 @@ index c2aa2f8..e58955c 100644
      solver.target = rollouts;
      solver.startedAt = Date.now();
      startCheck(solver.id, st, rollouts);
-@@ -577,24 +619,38 @@
+@@ -580,24 +622,38 @@
  
    function startCheck(id, st, rollouts) {
      const state = JSON.parse(JSON.stringify(st));
@@ -138,7 +138,7 @@ index c2aa2f8..e58955c 100644
          solver.workers = null;
        }
      }
-@@ -683,6 +739,13 @@
+@@ -686,6 +742,13 @@
      if (r.done || r.options.length <= 1) return true;
      const [top, ...rest] = r.options;
      if (r.rounds >= LIVE_MIN && rest.every((o) => o.gapSe > 0 && top.mean - o.mean > CLEAR_SE * o.gapSe)) return true;
@@ -152,7 +152,7 @@ index c2aa2f8..e58955c 100644
      // Out of time: the advice is the check's leader once it has LIVE_MIN
      // playouts each, else the strategy's own pick (recommendation()).
      return Date.now() - solver.startedAt >= CHECK_MS;
-@@ -717,6 +780,28 @@
+@@ -720,6 +783,28 @@
      return Object.assign({}, rec, { label: 'Cancel the consume, then end the day', why: `Your game shows a meal pick, where a meal or Cancel are the choices. ${rec.why || ''}`.trim() });
    }
  
@@ -181,7 +181,7 @@ index c2aa2f8..e58955c 100644
    // The strategy's instant pick, unless the live check finds a clearly better
    // move (by more than its paired margin), so the advice doesn't flicker.
    function bestMove() {
-@@ -1241,6 +1326,7 @@
+@@ -1244,6 +1329,7 @@
      // Always through setHTML, which skips what it wrote last: a headline
      // written past it left a new check showing the old move.
      if (stale) setHTML($('az-res-move'), 'Press Recheck for advice on this board');
@@ -189,7 +189,7 @@ index c2aa2f8..e58955c 100644
      else if (working) setHTML($('az-res-move'), `${SPIN}Working it out…`);
      else setHTML($('az-res-move'), esc(rec ? rec.label : 'Nothing to decide here.'));
      $('az-do').hidden = !rec || stale;
-@@ -3389,14 +3475,15 @@
+@@ -3396,14 +3482,15 @@
        },
        useReading: () => useScan(),
        ask: () => ask(true),
@@ -348,7 +348,7 @@ index 730c0b3..35baeab 100644
      emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
    }
 diff --git a/js/solver.js b/js/solver.js
-index 28d5692..9d14e09 100644
+index 543318c..cd40825 100644
 --- a/js/solver.js
 +++ b/js/solver.js
 @@ -18,6 +18,7 @@
@@ -678,7 +678,7 @@ index 28d5692..9d14e09 100644
        if (!best || value > best.value) best = { id, value };
      }
      return best ? best.id : options[0];
-@@ -1117,15 +1277,81 @@
+@@ -1127,15 +1287,81 @@
  
    // ---------- Monte Carlo solver ----------
  
@@ -762,7 +762,7 @@ index 28d5692..9d14e09 100644
    // Re-rolls everything the player can't see: the game's dice, and any
    // occupant behind a door that hasn't been fully revealed.
    function hideFuture(st, seed) {
-@@ -1481,7 +1707,7 @@
+@@ -1491,7 +1717,7 @@
      return null;
    }
  
