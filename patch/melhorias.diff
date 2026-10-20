@@ -399,7 +399,7 @@ index f5cacd5..65b4b24 100644
      if (m.asked) c.asked = true;
      renderCaptures();
 diff --git a/js/solver.js b/js/solver.js
-index 8eaf093..4b87627 100644
+index 8eaf093..eac6b7c 100644
 --- a/js/solver.js
 +++ b/js/solver.js
 @@ -18,6 +18,7 @@
@@ -456,7 +456,7 @@ index 8eaf093..4b87627 100644
 +  // Local build: weights for each run contract (Cage Fight, Iron Law,
 +  // Tyranny, Opulence), trained by strategy-sim.js train-contracts and
 +  // applied the same way, over the instrument's profile when there's one.
-+  const CONTRACT_PROFILES = {"opulence":{"gRing":4,"gHorn":-4,"gWine":-8,"gBrand":8,"giftChain":true,"tierBase":2.75,"wOpen":1.406,"wNow":1.319,"wWalk":0.879,"wStep":1,"wNest":0,"wChain":13.5,"wUsurp":0.375,"wCrow":4,"wShort":0,"wCage":5.063,"wStair":0.032,"swapMargin":-2,"execMargin":10},"tyranny":{"gRing":-8,"gHorn":-16,"gWine":2,"gBrand":-8,"giftChain":false,"tierBase":2.75,"rainbowMult":0.844,"wOpen":1.406,"wNow":0.791,"wStep":1.5,"wNest":3,"wChain":4.5,"wUsurp":1,"wInstigate":0.25,"wCrow":4,"wShort":0.1,"wCage":5.063,"wStair":0.095,"minDevour":0,"stopMargin":0,"maidenSwapTier":4,"execMargin":5,"acceptChain":false},"cagefight":{"gRing":10,"gHorn":-8,"gWine":-16,"gBrand":-8,"giftChain":false,"tierBase":2,"wOpen":1.054,"wNow":0.989,"wWalk":0.879,"wChain":20.25,"wCage":0.563,"wStair":0.188,"stopMargin":0,"swapMargin":-2,"execMargin":10}};
++  const CONTRACT_PROFILES = {"opulence":{"gRing":4,"gHorn":-4,"gWine":-8,"gBrand":8,"giftChain":true,"tierBase":2.75,"wOpen":1.406,"wNow":1.319,"wWalk":0.879,"wStep":1,"wNest":0,"wChain":13.5,"wUsurp":0.375,"wCrow":4,"wShort":0,"wCage":5.063,"wStair":0.032,"swapMargin":-2,"execMargin":10},"tyranny":{"gRing":-8,"gHorn":-16,"gWine":2,"gBrand":-8,"giftChain":false,"tierBase":2.75,"rainbowMult":0.844,"wOpen":1.406,"wNow":0.791,"wStep":1.5,"wNest":3,"wChain":4.5,"wUsurp":1,"wInstigate":0.25,"wCrow":4,"wShort":0.1,"wCage":5.063,"wStair":0.095,"minDevour":0,"stopMargin":0,"maidenSwapTier":4,"execMargin":5,"acceptChain":false},"cagefight":{"gRing":10,"gHorn":-8,"gWine":-16,"gBrand":-8,"giftChain":false,"tierBase":2,"wOpen":1.054,"wNow":0.989,"wWalk":0.879,"wChain":20.25,"wCage":0.563,"wStair":0.188,"stopMargin":0,"swapMargin":-2,"execMargin":10},"ironlaw":{"wWalk":0.659,"wUsurp":2.25,"wCrow":1,"wShort":0.25,"wCage":0.563,"wStair":0.188,"minDevour":0,"swapMaxTier":4,"swapMargin":-1,"giftChain":false,"gRing":2,"gHorn":-10,"gWine":4,"gBrand":4}};
 +  const toolProfileCache = new Map();
 +  const paramsFor = (st) => {
 +    let id = '';
