@@ -399,7 +399,7 @@ index f5cacd5..65b4b24 100644
      if (m.asked) c.asked = true;
      renderCaptures();
 diff --git a/js/solver.js b/js/solver.js
-index 8eaf093..e27f5be 100644
+index 8eaf093..4b87627 100644
 --- a/js/solver.js
 +++ b/js/solver.js
 @@ -18,6 +18,7 @@
@@ -443,7 +443,7 @@ index 8eaf093..e27f5be 100644
 -    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, wKeys: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'maiden', 'coin', 'shackles', 'scapegoat', 'revenge', 'muzzle', 'skewer', 'collar', 'ravenous', 'hook', 'saw', 'blacklist', 'guillotine', 'dogtag', 'tongs', 'stake', 'cage', 'whip', 'scales', 'keys', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
 -    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'maiden', 'coin', 'shackles', 'scapegoat', 'revenge', 'muzzle', 'skewer', 'collar', 'ravenous', 'hook', 'saw', 'blacklist', 'guillotine', 'dogtag', 'tongs', 'stake', 'cage', 'whip', 'scales', 'keys', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
 +    // Local build: retrained on 2026-10-18 under the current rules (fresh prisons: 4.6325 -> 4.7145), plus wCoin and wRav.
-+    rewards: { tierBase: 2.5, rainbowMult: 1.125, wOpen: 1.125, wNow: 1.055, wWalk: 1.172, wStep: 0.5, wChain: 9, wStair: 0.125, swapMaxTier: 3, minDevour: 1, execMargin: 0, acceptChain: true, wCrow: 2, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, wKeys: 1, wUsurp: 1.5, wNest: -3, stopMargin: -1, wCage: 2.25, wShort: 0.5, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'coin', 'maiden', 'shackles', 'scapegoat', 'muzzle', 'revenge', 'ravenous', 'skewer', 'collar', 'hook', 'blacklist', 'saw', 'guillotine', 'dogtag', 'stake', 'tongs', 'cage', 'whip', 'keys', 'scales', 'fire', 'pestle', 'shortchain', 'axe', 'forged', 'ironbox'], wCoin: 0.5, wRav: 0.75 },
++    rewards: {"tierBase":2.5,"rainbowMult":1.125,"wOpen":1.125,"wNow":1.055,"wWalk":1.172,"wStep":0.5,"wChain":9,"wStair":0.125,"swapMaxTier":3,"minDevour":1,"execMargin":0,"acceptChain":true,"wCrow":2,"wIncident":40,"wPass":40,"wOfficeIncident":60,"wConsume":20,"wKeys":1,"wUsurp":1.5,"wNest":-3,"stopMargin":-1,"wCage":2.25,"wShort":0.5,"toolRank":["trap","maul","crown","rope","claws","coin","maiden","shackles","scapegoat","muzzle","revenge","ravenous","skewer","collar","hook","blacklist","saw","guillotine","dogtag","stake","tongs","cage","whip","keys","scales","fire","pestle","shortchain","axe","forged","ironbox"],"wCoin":0.5,"wRav":0.75,"gRing":-2,"gHorn":-4,"gWine":4,"gBrand":4,"giftChain":false},
 +    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'coin', 'maiden', 'shackles', 'scapegoat', 'muzzle', 'revenge', 'ravenous', 'skewer', 'collar', 'hook', 'blacklist', 'saw', 'guillotine', 'dogtag', 'stake', 'tongs', 'cage', 'whip', 'keys', 'scales', 'fire', 'pestle', 'shortchain', 'axe', 'forged', 'ironbox'], wCoin: 0.5, wRav: 0.75 },
 +  };
 +  // Local build: weights for runs holding a key instrument, or a pair of them
