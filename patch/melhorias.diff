@@ -348,7 +348,7 @@ index 730c0b3..35baeab 100644
      emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
    }
 diff --git a/js/solver.js b/js/solver.js
-index 543318c..cd40825 100644
+index 8eaf093..b2463fb 100644
 --- a/js/solver.js
 +++ b/js/solver.js
 @@ -18,6 +18,7 @@
@@ -389,8 +389,8 @@ index 543318c..cd40825 100644
    // day 1: +0.066 ±0.031 Rainbows a run on fresh seeds. wForged and wFire
    // measured no gain and stay 0.
    const PROFILES = {
--    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, wKeys: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'coin', 'maiden', 'shackles', 'scapegoat', 'revenge', 'muzzle', 'skewer', 'collar', 'ravenous', 'hook', 'saw', 'blacklist', 'guillotine', 'dogtag', 'tongs', 'stake', 'cage', 'whip', 'scales', 'keys', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
--    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'coin', 'maiden', 'shackles', 'scapegoat', 'revenge', 'muzzle', 'skewer', 'collar', 'ravenous', 'hook', 'saw', 'blacklist', 'guillotine', 'dogtag', 'tongs', 'stake', 'cage', 'whip', 'scales', 'keys', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
+-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, wKeys: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'maiden', 'coin', 'shackles', 'scapegoat', 'revenge', 'muzzle', 'skewer', 'collar', 'ravenous', 'hook', 'saw', 'blacklist', 'guillotine', 'dogtag', 'tongs', 'stake', 'cage', 'whip', 'scales', 'keys', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
+-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'maiden', 'coin', 'shackles', 'scapegoat', 'revenge', 'muzzle', 'skewer', 'collar', 'ravenous', 'hook', 'saw', 'blacklist', 'guillotine', 'dogtag', 'tongs', 'stake', 'cage', 'whip', 'scales', 'keys', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
 +    // Local build: retrained on 2026-10-18 under the current rules (fresh prisons: 4.6325 -> 4.7145), plus wCoin and wRav.
 +    rewards: { tierBase: 2.5, rainbowMult: 1.125, wOpen: 1.125, wNow: 1.055, wWalk: 1.172, wStep: 0.5, wChain: 9, wStair: 0.125, swapMaxTier: 3, minDevour: 1, execMargin: 0, acceptChain: true, wCrow: 2, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, wKeys: 1, wUsurp: 1.5, wNest: -3, stopMargin: -1, wCage: 2.25, wShort: 0.5, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'coin', 'maiden', 'shackles', 'scapegoat', 'muzzle', 'revenge', 'ravenous', 'skewer', 'collar', 'hook', 'blacklist', 'saw', 'guillotine', 'dogtag', 'stake', 'tongs', 'cage', 'whip', 'keys', 'scales', 'fire', 'pestle', 'shortchain', 'axe', 'forged', 'ironbox'], wCoin: 0.5, wRav: 0.75 },
 +    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'coin', 'maiden', 'shackles', 'scapegoat', 'muzzle', 'revenge', 'ravenous', 'skewer', 'collar', 'hook', 'blacklist', 'saw', 'guillotine', 'dogtag', 'stake', 'tongs', 'cage', 'whip', 'keys', 'scales', 'fire', 'pestle', 'shortchain', 'axe', 'forged', 'ironbox'], wCoin: 0.5, wRav: 0.75 },
@@ -495,7 +495,7 @@ index 543318c..cd40825 100644
        revenge: has(st, 'revenge') && sealed > 0,
        axeDoors: has(st, 'axe') ? Math.min(2, sealed) : 0,
        dogtag: has(st, 'dogtag'),
-@@ -290,12 +350,12 @@
+@@ -296,12 +356,12 @@
    // stops when no meal is worth eating (stopMargin).
    function feed(ctx, t, b, comp, crowd) {
      let key = `${t}${b}${ctx.muzzle ? `m${crowd}` : ''}`;
@@ -511,7 +511,7 @@ index 543318c..cd40825 100644
        for (const f of (mt !== t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
          if (!comp[mt * 4 + f]) continue;
          comp[mt * 4 + f] -= 1;
-@@ -331,6 +391,15 @@
+@@ -337,6 +397,15 @@
      return ctx.maul && b === MAMMOTH ? RAINBOW - 1 : t;
    }
  
@@ -527,7 +527,7 @@ index 543318c..cd40825 100644
    // Expected change in value from a bite: the chosen meal, then the rest of
    // the chain. `chained` marks a bite inside a chain, after the first.
    // `comp` leaves out the eater and still holds the meal.
-@@ -347,7 +416,7 @@
+@@ -353,7 +422,7 @@
    // The best first meal for an eater of this tier and beast, by expected value.
    function bestMeal(ctx, tier, beast, comp, crowd) {
      let best = { value: -Infinity, meal: -1 };
@@ -536,7 +536,7 @@ index 543318c..cd40825 100644
        for (const f of (mt !== tier ? ctx.countersAt(tier) : ctx.eatsAt(tier))[beast]) {
          if (!comp[mt * 4 + f]) continue;
          const value = devourDelta(ctx, tier, beast, f, false, comp, crowd, false, mt);
-@@ -386,11 +455,11 @@
+@@ -392,11 +461,11 @@
      };
      const eat = (t, b) => {
        let key = `${t}${b}`;
@@ -550,7 +550,7 @@ index 543318c..cd40825 100644
          for (const f of (mt !== t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
            if (!comp[mt * 4 + f]) continue;
            comp[mt * 4 + f] -= 1;
-@@ -675,6 +744,14 @@
+@@ -681,6 +750,14 @@
          const shown = c.known && c.hidden ? [0, 1, 2, 3, 4].map((t) => (t === Math.min(4, c.hidden.tier) ? 1 : 0)) : null;
          const dist = shown || (c.atLeast ? floorDist(ctx.openDist, c.atLeast) : null);
          score += dist ? freshValue(ctx, tagged(ctx, dist), board.comp, board.crowd + 1, swapLeft) : freshNow();
@@ -565,7 +565,7 @@ index 543318c..cd40825 100644
          // Executioner's Blacklist: opening this door leaves 5 or fewer locked,
          // so 2 random inmates rise a tier.
          if (ctx.blacklist && ctx.sealed - 1 <= 5) score += 2 * ctx.lift;
-@@ -798,6 +875,69 @@
+@@ -804,6 +881,69 @@
      return linkValue(st, ctx, link) * (certain || link.prey === inmate.id ? 1 : 0.75);
    }
  
@@ -635,7 +635,7 @@ index 543318c..cd40825 100644
    // Today's devour options for the warden's inmate, valued. Best first.
    // While a chain waits for a pick, they're the eater's next meals.
    function devourScores(st, ctx) {
-@@ -819,7 +959,19 @@
+@@ -825,7 +965,19 @@
          // Crowded Beastcage: 40% of the time the meal's cell opens again with
          // someone new (the chain after the first bite isn't counted).
          const cage = ctx.cage ? ctx.P.wCage * 0.4 * ctx.P.wOpen * ctx.openValue : 0;
@@ -656,7 +656,7 @@ index 543318c..cd40825 100644
        })
        .sort((a, b) => b.score - a.score);
    }
-@@ -831,6 +983,13 @@
+@@ -837,6 +989,13 @@
      const here = st.cells[st.position];
      if (!here || here.sealed || !here.inmate || !canSwapNow(st) || ctx.swapCap < 0) return -Infinity;
      let gain = swapValue(ctx, here.inmate.tier) - linkLoss(st, ctx, here.inmate, true);
@@ -670,7 +670,7 @@ index 543318c..cd40825 100644
      if (here.ivory) {
        const board = st.cells.filter((c) => !c.sealed && c.inmate && c.inmate.tier < RAINBOW);
        const lift = board.reduce((sum, c) => sum + ctx.v[c.inmate.tier + 1] - ctx.v[c.inmate.tier], 0) / Math.max(1, board.length);
-@@ -905,6 +1064,7 @@
+@@ -911,6 +1070,7 @@
          value += boardValue(trial, context(trial, P));
        }
        value /= samples;
@@ -678,7 +678,7 @@ index 543318c..cd40825 100644
        if (!best || value > best.value) best = { id, value };
      }
      return best ? best.id : options[0];
-@@ -1127,15 +1287,81 @@
+@@ -1133,15 +1293,81 @@
  
    // ---------- Monte Carlo solver ----------
  
@@ -762,7 +762,7 @@ index 543318c..cd40825 100644
    // Re-rolls everything the player can't see: the game's dice, and any
    // occupant behind a door that hasn't been fully revealed.
    function hideFuture(st, seed) {
-@@ -1491,7 +1717,7 @@
+@@ -1497,7 +1723,7 @@
      return null;
    }
  
@@ -772,13 +772,13 @@ index 543318c..cd40825 100644
    root.TartarusSolver = api;
  })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);
 diff --git a/js/tool-combos.js b/js/tool-combos.js
-index fbe8ad8..e9d0b92 100644
+index 7492451..e9d0b92 100644
 --- a/js/tool-combos.js
 +++ b/js/tool-combos.js
 @@ -1,5 +1,5 @@
  /* Generated by tools/strategy-sim.js combos: Rainbows per run with each set of instruments held from day 1. Do not edit by hand. */
  (function (root) {
--  root.TARTARUS_COMBOS = {"single":{"generated":"2026-10-18","ids":["revenge","muzzle","saw","keys","rope","fire","ironbox","skewer","hook","pestle","scales","tongs","guillotine","axe","shackles","collar","forged","dogtag","cage","blacklist","shortchain","maiden","whip","ravenous","scapegoat","stake","coin","crown","maul","claws","trap"],"base":1.767,"sizes":{"1":{"sets":31,"runs":124000,"margin":0.0634},"2":{"sets":465,"runs":1860000,"margin":0.069}},"v":{"a":2.461,"b":2.467,"c":2.196,"d":1.874,"e":3.223,"f":1.786,"g":1.119,"h":2.318,"i":2.239,"j":1.745,"k":1.839,"l":1.966,"m":2.069,"n":1.574,"o":2.663,"p":2.244,"q":1.349,"r":2.055,"s":1.932,"t":2.204,"u":1.739,"v":2.716,"w":1.916,"x":2.313,"y":2.631,"z":1.985,"{":2.728,"|":3.374,"}":3.534,"~":3.053,"":3.591,"ab":3.236,"ac":2.857,"ad":3.019,"ae":3.789,"af":2.545,"ag":1.66,"ah":3.011,"ai":2.868,"aj":2.388,"ak":2.507,"al":2.493,"am":2.741,"an":2.555,"ao":3.266,"ap":3.047,"aq":2.325,"ar":2.675,"as":2.676,"at":2.55,"au":2.509,"av":3.188,"aw":2.684,"ax":2.72,"ay":2.805,"az":2.534,"a{":3.125,"a|":4.128,"a}":4.064,"a~":4.043,"a":3.452,"bc":2.883,"bd":2.187,"be":4.057,"bf":2.123,"bg":1.306,"bh":3.097,"bi":2.921,"bj":2.443,"bk":2.541,"bl":2.563,"bm":2.855,"bn":2.04,"bo":3.429,"bp":2.807,"bq":1.713,"br":2.72,"bs":2.344,"bt":2.74,"bu":2.228,"bv":3.298,"bw":2.499,"bx":3.076,"by":3.374,"bz":2.405,"b{":3.639,"b|":4.372,"b}":4.431,"b~":4.37,"b":3.776,"cd":2.61,"ce":3.636,"cf":2.279,"cg":1.409,"ch":2.689,"ci":2.667,"cj":2.229,"ck":2.257,"cl":2.364,"cm":2.485,"cn":2.214,"co":3.112,"cp":2.517,"cq":1.934,"cr":2.494,"cs":2.364,"ct":2.34,"cu":2.223,"cv":3.015,"cw":2.283,"cx":2.564,"cy":2.74,"cz":2.392,"c{":3.009,"c|":3.783,"c}":3.82,"c~":3.665,"c":3.613,"de":2.85,"df":1.843,"dg":1.327,"dh":2.762,"di":2.817,"dj":1.874,"dk":1.859,"dl":2.34,"dm":2.392,"dn":1.627,"do":2.653,"dp":2.837,"dq":1.472,"dr":2.098,"ds":2.099,"dt":3.287,"du":1.895,"dv":2.309,"dw":2.421,"dx":3.018,"dy":3.229,"dz":1.872,"d{":3.649,"d|":4.652,"d}":4.376,"d~":3.013,"d":4.42,"ef":2.958,"eg":1.923,"eh":3.816,"ei":3.434,"ej":3.228,"ek":3.221,"el":3.472,"em":3.439,"en":2.543,"eo":4.495,"ep":3.67,"eq":2.437,"er":3.351,"es":3.188,"et":3.377,"eu":3.037,"ev":9.122,"ew":3.267,"ex":3.598,"ey":3.027,"ez":2.925,"e{":4.628,"e|":4.667,"e}":4.976,"e~":4.058,"e":5.015,"fg":1.177,"fh":2.567,"fi":2.357,"fj":1.765,"fk":1.848,"fl":2.076,"fm":2.163,"fn":1.563,"fo":2.607,"fp":2.388,"fq":1.345,"fr":2.134,"fs":1.885,"ft":2.679,"fu":1.767,"fv":2.479,"fw":2.026,"fx":2.539,"fy":2.785,"fz":1.887,"f{":3.204,"f|":3.897,"f}":3.697,"f~":3.009,"f":3.811,"gh":4.497,"gi":1.353,"gj":1.088,"gk":1.151,"gl":1.677,"gm":1.576,"gn":1.198,"go":2.046,"gp":1.453,"gq":0.813,"gr":1.22,"gs":1.196,"gt":1.799,"gu":1.26,"gv":1.814,"gw":1.073,"gx":2.757,"gy":2.592,"gz":1.337,"g{":4.504,"g|":2.066,"g}":1.992,"g~":1.651,"g":2.73,"hi":2.774,"hj":2.261,"hk":2.389,"hl":2.392,"hm":2.519,"hn":2.285,"ho":3.163,"hp":2.706,"hq":2.127,"hr":2.563,"hs":2.483,"ht":2.478,"hu":2.387,"hv":3.117,"hw":2.433,"hx":2.639,"hy":2.808,"hz":2.509,"h{":3.051,"h|":3.848,"h}":3.954,"h~":3.657,"h":3.713,"ij":2.216,"ik":2.289,"il":2.397,"im":2.563,"in":2.15,"io":3.349,"ip":2.659,"iq":2.033,"ir":2.731,"is":2.452,"it":2.554,"iu":2.326,"iv":2.998,"iw":2.338,"ix":2.739,"iy":3.072,"iz":2.237,"i{":3.228,"i|":3.906,"i}":3.929,"i~":4.098,"i":3.983,"jk":1.837,"jl":1.942,"jm":2.066,"jn":1.569,"jo":2.708,"jp":2.244,"jq":1.385,"jr":2.036,"js":1.922,"jt":2.163,"ju":1.771,"jv":2.705,"jw":1.917,"jx":2.288,"jy":2.656,"jz":2.032,"j{":2.733,"j|":3.365,"j}":3.419,"j~":2.939,"j":3.614,"kl":2.024,"km":2.131,"kn":1.567,"ko":2.7,"kp":2.272,"kq":1.319,"kr":2.133,"ks":1.946,"kt":2.257,"ku":1.802,"kv":2.764,"kw":1.939,"kx":2.326,"ky":2.765,"kz":2.05,"k{":2.794,"k|":3.512,"k}":3.576,"k~":3.03,"k":3.608,"lm":2.297,"ln":2.154,"lo":3.051,"lp":2.305,"lq":1.771,"lr":2.241,"ls":2.117,"lt":2.325,"lu":2.017,"lv":3.389,"lw":2.094,"lx":2.447,"ly":2.748,"lz":2.443,"l{":2.862,"l|":3.424,"l}":3.55,"l~":3.236,"l":3.813,"mn":1.978,"mo":2.981,"mp":2.534,"mq":1.757,"mr":2.36,"ms":2.296,"mt":2.42,"mu":2.09,"mv":2.969,"mw":2.207,"mx":2.514,"my":2.716,"mz":2.311,"m{":2.94,"m|":3.655,"m}":3.666,"m~":3.387,"m":3.722,"no":2.381,"np":2.368,"nq":1.178,"nr":1.825,"ns":1.741,"nt":2.678,"nu":1.545,"nv":2.376,"nw":2.021,"nx":2.435,"ny":2.433,"nz":1.702,"n{":2.991,"n|":3.74,"n}":3.608,"n~":2.682,"n":3.797,"op":3.08,"oq":2.053,"or":3.034,"os":2.762,"ot":2.913,"ou":2.645,"ov":3.631,"ow":2.682,"ox":3.188,"oy":3.498,"oz":2.935,"o{":3.628,"o|":4.28,"o}":4.345,"o~":4.083,"o":4.247,"pq":2.103,"pr":2.499,"ps":2.507,"pt":2.443,"pu":2.341,"pv":3.018,"pw":2.247,"px":2.552,"py":2.704,"pz":2.304,"p{":3.063,"p|":3.735,"p}":3.725,"p~":3.631,"p":3.526,"qr":1.575,"qs":1.524,"qt":2.271,"qu":1.381,"qv":2.021,"qw":1.397,"qx":2.207,"qy":2.354,"qz":1.184,"q{":2.814,"q|":3.619,"q}":3.574,"q~":2.614,"q":3.492,"rs":2.135,"rt":2.442,"ru":1.985,"rv":2.913,"rw":2.165,"rx":2.539,"ry":2.872,"rz":2.126,"r{":3.055,"r|":3.713,"r}":3.758,"r~":3.279,"r":3.866,"st":2.474,"su":1.931,"sv":2.747,"sw":2.101,"sx":2.416,"sy":2.703,"sz":1.976,"s{":2.978,"s|":3.797,"s}":3.795,"s~":3.224,"s":3.697,"tu":2.416,"tv":3.015,"tw":2.102,"tx":2.405,"ty":2.64,"tz":2.493,"t{":2.778,"t|":3.468,"t}":3.601,"t~":3.311,"t":4.003,"uv":2.545,"uw":2.028,"ux":2.421,"uy":2.723,"uz":1.893,"u{":2.921,"u|":3.62,"u}":3.673,"u~":2.92,"u":3.711,"vw":2.75,"vx":3.353,"vy":6.093,"vz":4.162,"v{":3.465,"v|":4.008,"v}":4.288,"v~":3.681,"v":3.852,"wx":2.252,"wy":2.337,"wz":1.762,"w{":2.758,"w|":3.549,"w}":3.55,"w~":3.592,"w":3.099,"xy":2.793,"xz":2.538,"x{":2.867,"x|":3.583,"x}":3.72,"x~":3.505,"x":3.477,"yz":2.275,"y{":2.88,"y|":3.378,"y}":3.665,"y~":3.792,"y":3.253,"z{":3.553,"z|":3.414,"z}":4.047,"z~":3.06,"z":3.702,"{|":4.002,"{}":4.106,"{~":3.937,"{":4.101,"|}":4.501,"|~":4.695,"|":4.556,"}~":4.718,"}":4.435,"~":4.637}}};
+-  root.TARTARUS_COMBOS = {"single":{"generated":"2026-10-20","ids":["revenge","muzzle","saw","keys","rope","fire","ironbox","skewer","hook","pestle","scales","tongs","guillotine","axe","shackles","collar","forged","dogtag","cage","blacklist","shortchain","maiden","whip","ravenous","scapegoat","stake","coin","crown","maul","claws","trap"],"base":1.767,"sizes":{"1":{"sets":31,"runs":124000,"margin":0.0634},"2":{"sets":465,"runs":1860000,"margin":0.0675}},"v":{"a":2.461,"b":2.467,"c":2.196,"d":1.874,"e":3.223,"f":1.786,"g":1.119,"h":2.318,"i":2.239,"j":1.745,"k":1.839,"l":1.966,"m":2.069,"n":1.574,"o":2.663,"p":2.244,"q":1.349,"r":2.055,"s":1.932,"t":2.204,"u":1.739,"w":1.916,"x":2.313,"z":1.985,"{":2.728,"|":3.374,"}":3.534,"~":3.053,"":3.591,"ab":3.236,"ac":2.857,"ad":3.019,"ae":3.789,"af":2.545,"ag":1.66,"ah":3.011,"ai":2.868,"aj":2.388,"ak":2.507,"al":2.493,"am":2.741,"an":2.555,"ao":3.266,"ap":3.047,"aq":2.325,"ar":2.675,"as":2.676,"at":2.55,"au":2.509,"aw":2.684,"ax":2.72,"az":2.534,"a{":3.125,"a|":4.128,"a}":4.064,"a~":4.043,"a":3.452,"bc":2.883,"bd":2.187,"be":4.057,"bf":2.123,"bg":1.306,"bh":3.097,"bi":2.921,"bj":2.443,"bk":2.541,"bl":2.563,"bm":2.855,"bn":2.04,"bo":3.429,"bp":2.807,"bq":1.713,"br":2.72,"bs":2.344,"bt":2.74,"bu":2.228,"bw":2.499,"bx":3.076,"bz":2.405,"b{":3.639,"b|":4.372,"b}":4.431,"b~":4.37,"b":3.776,"cd":2.61,"ce":3.636,"cf":2.279,"cg":1.409,"ch":2.689,"ci":2.667,"cj":2.229,"ck":2.257,"cl":2.364,"cm":2.485,"cn":2.214,"co":3.112,"cp":2.517,"cq":1.934,"cr":2.494,"cs":2.364,"ct":2.34,"cu":2.223,"cw":2.283,"cx":2.564,"cz":2.392,"c{":3.009,"c|":3.783,"c}":3.82,"c~":3.665,"c":3.613,"de":2.85,"df":1.843,"dg":1.327,"dh":2.762,"di":2.817,"dj":1.874,"dk":1.859,"dl":2.34,"dm":2.392,"dn":1.627,"do":2.653,"dp":2.837,"dq":1.472,"dr":2.098,"ds":2.099,"dt":3.287,"du":1.895,"dw":2.421,"dx":3.018,"dz":1.872,"d{":3.649,"d|":4.652,"d}":4.376,"d~":3.013,"d":4.42,"ef":2.958,"eg":1.923,"eh":3.816,"ei":3.434,"ej":3.228,"ek":3.221,"el":3.472,"em":3.439,"en":2.543,"eo":4.495,"ep":3.67,"eq":2.437,"er":3.351,"es":3.188,"et":3.377,"eu":3.037,"ew":3.267,"ex":3.598,"ez":2.925,"e{":4.628,"e|":4.667,"e}":4.976,"e~":4.058,"e":5.015,"fg":1.177,"fh":2.567,"fi":2.357,"fj":1.765,"fk":1.848,"fl":2.076,"fm":2.163,"fn":1.563,"fo":2.607,"fp":2.388,"fq":1.345,"fr":2.134,"fs":1.885,"ft":2.679,"fu":1.767,"fw":2.026,"fx":2.539,"fz":1.887,"f{":3.204,"f|":3.897,"f}":3.697,"f~":3.009,"f":3.811,"gh":4.497,"gi":1.353,"gj":1.088,"gk":1.151,"gl":1.677,"gm":1.576,"gn":1.198,"go":2.046,"gp":1.453,"gq":0.813,"gr":1.22,"gs":1.196,"gt":1.799,"gu":1.26,"gw":1.073,"gx":2.757,"gz":1.337,"g{":4.504,"g|":2.066,"g}":1.992,"g~":1.651,"g":2.73,"hi":2.774,"hj":2.261,"hk":2.389,"hl":2.392,"hm":2.519,"hn":2.285,"ho":3.163,"hp":2.706,"hq":2.127,"hr":2.563,"hs":2.483,"ht":2.478,"hu":2.387,"hw":2.433,"hx":2.639,"hz":2.509,"h{":3.051,"h|":3.848,"h}":3.954,"h~":3.657,"h":3.713,"ij":2.216,"ik":2.289,"il":2.397,"im":2.563,"in":2.15,"io":3.349,"ip":2.659,"iq":2.033,"ir":2.731,"is":2.452,"it":2.554,"iu":2.326,"iw":2.338,"ix":2.739,"iz":2.237,"i{":3.228,"i|":3.906,"i}":3.929,"i~":4.098,"i":3.983,"jk":1.837,"jl":1.942,"jm":2.066,"jn":1.569,"jo":2.708,"jp":2.244,"jq":1.385,"jr":2.036,"js":1.922,"jt":2.163,"ju":1.771,"jw":1.917,"jx":2.288,"jz":2.032,"j{":2.733,"j|":3.365,"j}":3.419,"j~":2.939,"j":3.614,"kl":2.024,"km":2.131,"kn":1.567,"ko":2.7,"kp":2.272,"kq":1.319,"kr":2.133,"ks":1.946,"kt":2.257,"ku":1.802,"kw":1.939,"kx":2.326,"kz":2.05,"k{":2.794,"k|":3.512,"k}":3.576,"k~":3.03,"k":3.608,"lm":2.297,"ln":2.154,"lo":3.051,"lp":2.305,"lq":1.771,"lr":2.241,"ls":2.117,"lt":2.325,"lu":2.017,"lw":2.094,"lx":2.447,"lz":2.443,"l{":2.862,"l|":3.424,"l}":3.55,"l~":3.236,"l":3.813,"mn":1.978,"mo":2.981,"mp":2.534,"mq":1.757,"mr":2.36,"ms":2.296,"mt":2.42,"mu":2.09,"mw":2.207,"mx":2.514,"mz":2.311,"m{":2.94,"m|":3.655,"m}":3.666,"m~":3.387,"m":3.722,"no":2.381,"np":2.368,"nq":1.178,"nr":1.825,"ns":1.741,"nt":2.678,"nu":1.545,"nw":2.021,"nx":2.435,"nz":1.702,"n{":2.991,"n|":3.74,"n}":3.608,"n~":2.682,"n":3.797,"op":3.08,"oq":2.053,"or":3.034,"os":2.762,"ot":2.913,"ou":2.645,"ow":2.682,"ox":3.188,"oz":2.935,"o{":3.628,"o|":4.28,"o}":4.345,"o~":4.083,"o":4.247,"pq":2.103,"pr":2.499,"ps":2.507,"pt":2.443,"pu":2.341,"pw":2.247,"px":2.552,"pz":2.304,"p{":3.063,"p|":3.735,"p}":3.725,"p~":3.631,"p":3.526,"qr":1.575,"qs":1.524,"qt":2.271,"qu":1.381,"qw":1.397,"qx":2.207,"qz":1.184,"q{":2.814,"q|":3.619,"q}":3.574,"q~":2.614,"q":3.492,"rs":2.135,"rt":2.442,"ru":1.985,"rw":2.165,"rx":2.539,"rz":2.126,"r{":3.055,"r|":3.713,"r}":3.758,"r~":3.279,"r":3.866,"st":2.474,"su":1.931,"sw":2.101,"sx":2.416,"sz":1.976,"s{":2.978,"s|":3.797,"s}":3.795,"s~":3.224,"s":3.697,"tu":2.416,"tw":2.102,"tx":2.405,"tz":2.493,"t{":2.778,"t|":3.468,"t}":3.601,"t~":3.311,"t":4.003,"uw":2.028,"ux":2.421,"uz":1.893,"u{":2.921,"u|":3.62,"u}":3.673,"u~":2.92,"u":3.711,"wx":2.252,"wz":1.762,"w{":2.758,"w|":3.549,"w}":3.55,"w~":3.592,"w":3.099,"xz":2.538,"x{":2.867,"x|":3.583,"x}":3.72,"x~":3.505,"x":3.477,"z{":3.553,"z|":3.414,"z}":4.047,"z~":3.06,"z":3.702,"{|":4.002,"{}":4.106,"{~":3.937,"{":4.101,"|}":4.501,"|~":4.695,"|":4.556,"}~":4.718,"}":4.435,"~":4.637,"v":2.917,"y":2.57,"av":3.457,"ay":2.791,"bv":3.502,"by":3.363,"cv":3.301,"cy":2.691,"dv":2.514,"dy":3.083,"ev":8.928,"ey":2.942,"fv":2.788,"fy":2.725,"gv":2.155,"gy":2.447,"hv":3.372,"hy":2.781,"iv":3.49,"iy":3.071,"jv":2.916,"jy":2.613,"kv":3.042,"ky":2.715,"lv":3.246,"ly":2.72,"mv":3.179,"my":2.661,"nv":2.573,"ny":2.331,"ov":4.033,"oy":3.451,"pv":3.266,"py":2.683,"qv":2.143,"qy":2.296,"rv":3.209,"ry":2.833,"sv":2.997,"sy":2.642,"tv":3.238,"ty":2.586,"uv":2.746,"uy":2.639,"vw":2.861,"vx":3.557,"vy":4.978,"vz":3.811,"v{":3.949,"v|":4.311,"v}":4.798,"v~":4.171,"v":4.368,"wy":2.304,"xy":2.722,"yz":2.22,"y{":2.871,"y|":3.403,"y}":3.684,"y~":3.733,"y":3.283}}};
 +  root.TARTARUS_COMBOS = {"single":{"generated":"2026-10-18","ids":["revenge","muzzle","saw","keys","rope","fire","ironbox","skewer","hook","pestle","scales","tongs","guillotine","axe","shackles","collar","forged","dogtag","cage","blacklist","shortchain","maiden","whip","ravenous","scapegoat","stake","coin","crown","maul","claws","trap"],"base":1.767,"sizes":{"1":{"sets":31,"runs":124000,"margin":0.0634},"2":{"sets":465,"runs":1860000,"margin":0.069}},"v":{"a":2.461,"b":2.467,"c":2.196,"d":1.874,"e":3.223,"f":1.786,"g":1.119,"h":2.318,"i":2.239,"j":1.745,"k":1.839,"l":1.966,"m":2.115,"n":1.574,"o":2.663,"p":2.244,"q":1.349,"r":2.055,"s":1.932,"t":2.204,"u":1.739,"v":2.716,"w":1.916,"x":2.44,"y":2.631,"z":1.985,"{":2.786,"|":3.374,"}":3.534,"~":3.053,"":3.591,"ab":3.236,"ac":2.857,"ad":3.019,"ae":3.789,"af":2.545,"ag":1.66,"ah":3.011,"ai":2.868,"aj":2.388,"ak":2.507,"al":2.493,"am":2.746,"an":2.555,"ao":3.266,"ap":3.047,"aq":2.325,"ar":2.675,"as":2.676,"at":2.55,"au":2.509,"av":3.188,"aw":2.684,"ax":2.809,"ay":2.805,"az":2.534,"a{":3.111,"a|":4.128,"a}":4.064,"a~":4.043,"a":3.452,"bc":2.883,"bd":2.187,"be":4.057,"bf":2.123,"bg":1.306,"bh":3.097,"bi":2.921,"bj":2.443,"bk":2.541,"bl":2.563,"bm":2.92,"bn":2.04,"bo":3.429,"bp":2.807,"bq":1.713,"br":2.72,"bs":2.344,"bt":2.74,"bu":2.228,"bv":3.298,"bw":2.499,"bx":3.283,"by":3.374,"bz":2.405,"b{":3.643,"b|":4.372,"b}":4.431,"b~":4.37,"b":3.776,"cd":2.61,"ce":3.636,"cf":2.279,"cg":1.409,"ch":2.689,"ci":2.667,"cj":2.229,"ck":2.257,"cl":2.364,"cm":2.489,"cn":2.214,"co":3.112,"cp":2.517,"cq":1.934,"cr":2.494,"cs":2.364,"ct":2.34,"cu":2.223,"cv":3.015,"cw":2.283,"cx":2.657,"cy":2.74,"cz":2.392,"c{":3.006,"c|":3.783,"c}":3.82,"c~":3.665,"c":3.613,"de":2.85,"df":1.843,"dg":1.327,"dh":2.762,"di":2.817,"dj":1.874,"dk":1.859,"dl":2.34,"dm":2.386,"dn":1.627,"do":2.653,"dp":2.837,"dq":1.472,"dr":2.098,"ds":2.099,"dt":3.287,"du":1.895,"dv":2.309,"dw":2.421,"dx":3.142,"dy":3.229,"dz":1.872,"d{":3.705,"d|":4.652,"d}":4.376,"d~":3.013,"d":4.42,"ef":2.958,"eg":1.923,"eh":3.816,"ei":3.434,"ej":3.228,"ek":3.221,"el":3.472,"em":3.467,"en":2.543,"eo":4.495,"ep":3.67,"eq":2.437,"er":3.351,"es":3.188,"et":3.377,"eu":3.037,"ev":9.122,"ew":3.267,"ex":3.675,"ey":3.027,"ez":2.925,"e{":4.679,"e|":4.667,"e}":4.976,"e~":4.058,"e":5.015,"fg":1.177,"fh":2.567,"fi":2.357,"fj":1.765,"fk":1.848,"fl":2.076,"fm":2.157,"fn":1.563,"fo":2.607,"fp":2.388,"fq":1.345,"fr":2.134,"fs":1.885,"ft":2.679,"fu":1.767,"fv":2.479,"fw":2.026,"fx":2.631,"fy":2.785,"fz":1.887,"f{":3.324,"f|":3.897,"f}":3.697,"f~":3.009,"f":3.811,"gh":4.497,"gi":1.353,"gj":1.088,"gk":1.151,"gl":1.677,"gm":1.564,"gn":1.198,"go":2.046,"gp":1.453,"gq":0.813,"gr":1.22,"gs":1.196,"gt":1.799,"gu":1.26,"gv":1.814,"gw":1.073,"gx":2.773,"gy":2.592,"gz":1.337,"g{":4.498,"g|":2.066,"g}":1.992,"g~":1.651,"g":2.73,"hi":2.774,"hj":2.261,"hk":2.389,"hl":2.392,"hm":2.538,"hn":2.285,"ho":3.163,"hp":2.706,"hq":2.127,"hr":2.563,"hs":2.483,"ht":2.478,"hu":2.387,"hv":3.117,"hw":2.433,"hx":2.749,"hy":2.808,"hz":2.509,"h{":3.099,"h|":3.848,"h}":3.954,"h~":3.657,"h":3.713,"ij":2.216,"ik":2.289,"il":2.397,"im":2.598,"in":2.15,"io":3.349,"ip":2.659,"iq":2.033,"ir":2.731,"is":2.452,"it":2.554,"iu":2.326,"iv":2.998,"iw":2.338,"ix":2.834,"iy":3.072,"iz":2.237,"i{":3.316,"i|":3.906,"i}":3.929,"i~":4.098,"i":3.983,"jk":1.837,"jl":1.942,"jm":2.079,"jn":1.569,"jo":2.708,"jp":2.244,"jq":1.385,"jr":2.036,"js":1.922,"jt":2.163,"ju":1.771,"jv":2.705,"jw":1.917,"jx":2.425,"jy":2.656,"jz":2.032,"j{":2.848,"j|":3.365,"j}":3.419,"j~":2.939,"j":3.614,"kl":2.024,"km":2.18,"kn":1.567,"ko":2.7,"kp":2.272,"kq":1.319,"kr":2.133,"ks":1.946,"kt":2.257,"ku":1.802,"kv":2.764,"kw":1.939,"kx":2.485,"ky":2.765,"kz":2.05,"k{":2.816,"k|":3.512,"k}":3.576,"k~":3.03,"k":3.608,"lm":2.316,"ln":2.154,"lo":3.051,"lp":2.305,"lq":1.771,"lr":2.241,"ls":2.117,"lt":2.325,"lu":2.017,"lv":3.389,"lw":2.094,"lx":2.526,"ly":2.748,"lz":2.443,"l{":2.88,"l|":3.424,"l}":3.55,"l~":3.236,"l":3.813,"mn":2.139,"mo":3.03,"mp":2.521,"mq":1.808,"mr":2.37,"ms":2.288,"mt":2.359,"mu":2.117,"mv":3.067,"mw":2.254,"mx":2.675,"my":2.724,"mz":2.342,"m{":2.969,"m|":3.672,"m}":3.639,"m~":3.457,"m":3.625,"no":2.381,"np":2.368,"nq":1.178,"nr":1.825,"ns":1.741,"nt":2.678,"nu":1.545,"nv":2.376,"nw":2.021,"nx":2.579,"ny":2.433,"nz":1.702,"n{":3.094,"n|":3.74,"n}":3.608,"n~":2.682,"n":3.797,"op":3.08,"oq":2.053,"or":3.034,"os":2.762,"ot":2.913,"ou":2.645,"ov":3.631,"ow":2.682,"ox":3.19,"oy":3.498,"oz":2.935,"o{":3.61,"o|":4.28,"o}":4.345,"o~":4.083,"o":4.247,"pq":2.103,"pr":2.499,"ps":2.507,"pt":2.443,"pu":2.341,"pv":3.018,"pw":2.247,"px":2.683,"py":2.704,"pz":2.304,"p{":3.098,"p|":3.735,"p}":3.725,"p~":3.631,"p":3.526,"qr":1.575,"qs":1.524,"qt":2.271,"qu":1.381,"qv":2.021,"qw":1.397,"qx":2.279,"qy":2.354,"qz":1.184,"q{":2.874,"q|":3.619,"q}":3.574,"q~":2.614,"q":3.492,"rs":2.135,"rt":2.442,"ru":1.985,"rv":2.913,"rw":2.165,"rx":2.715,"ry":2.872,"rz":2.126,"r{":3.118,"r|":3.713,"r}":3.758,"r~":3.279,"r":3.866,"st":2.474,"su":1.931,"sv":2.747,"sw":2.101,"sx":2.542,"sy":2.703,"sz":1.976,"s{":2.981,"s|":3.797,"s}":3.795,"s~":3.224,"s":3.697,"tu":2.416,"tv":3.015,"tw":2.102,"tx":2.51,"ty":2.64,"tz":2.493,"t{":2.863,"t|":3.468,"t}":3.601,"t~":3.311,"t":4.003,"uv":2.545,"uw":2.028,"ux":2.544,"uy":2.723,"uz":1.893,"u{":2.985,"u|":3.62,"u}":3.673,"u~":2.92,"u":3.711,"vw":2.75,"vx":3.654,"vy":6.093,"vz":4.162,"v{":3.557,"v|":4.008,"v}":4.288,"v~":3.681,"v":3.852,"wx":2.313,"wy":2.337,"wz":1.762,"w{":2.755,"w|":3.549,"w}":3.55,"w~":3.592,"w":3.099,"xy":2.857,"xz":2.619,"x{":2.984,"x|":3.631,"x}":3.764,"x~":3.616,"x":3.507,"yz":2.275,"y{":2.234,"y|":3.378,"y}":3.665,"y~":3.792,"y":3.253,"z{":3.7,"z|":3.414,"z}":4.047,"z~":3.06,"z":3.702,"{|":4.034,"{}":4.168,"{~":3.925,"{":4.082,"|}":4.501,"|~":4.695,"|":4.556,"}~":4.718,"}":4.435,"~":4.637}}};
    if (typeof module === 'object' && module.exports) module.exports = root.TARTARUS_COMBOS;
  })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);
