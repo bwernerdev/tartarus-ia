@@ -1,5 +1,5 @@
 diff --git a/js/analyze.js b/js/analyze.js
-index a6c9f4e..c3c9bc6 100644
+index a6c9f4e..85c399a 100644
 --- a/js/analyze.js
 +++ b/js/analyze.js
 @@ -44,15 +44,32 @@
@@ -189,7 +189,168 @@ index a6c9f4e..c3c9bc6 100644
      else if (working) setHTML($('az-res-move'), `${SPIN}Working it out…`);
      else setHTML($('az-res-move'), esc(rec ? rec.label : 'Nothing to decide here.'));
      $('az-do').hidden = !rec || stale;
-@@ -3396,14 +3482,15 @@
+@@ -3372,6 +3458,160 @@
+     window.addEventListener('pagehide', shareHeld);
+     // Follow my game (js/auto.js, beta): read frames of the game, load
+     // them, and ask, without the toasts a pasted screenshot gets.
++    // Local build (autoclick): where the final advice is on the game's picture,
++    // in picture pixels, pushed to local/serve.js for local/autoclick.
++    // Board moves (doors, meals, End, Replace, the office) come from the
++    // reader's own spots. Everything else (instrument and gift picks, events,
++    // re-roll, Cancel, Confirm) is found by text: the clicker sends a picture
++    // of the game window, this page reads it and answers with the words'
++    // boxes, stage by stage (pick the card, then Confirm).
++    const AUTO_WORDS = {
++      confirm: ['confirm', 'select', 'choose', 'ok'],
++      accept: ['accept', 'confirm', 'yes', 'ok'],
++      skip: ['skip', 'decline', 'refuse', 'no'],
++      reroll: ['reroll', 'refresh', 'redraw'],
++      cancel: ['cancel'],
++    };
++    const AUTO_STAGE_TRIES = 4;
++    const autoLetters = (t) => String(t).toLowerCase().replace(/[^a-z]/g, '');
++    function autoStages(rec) {
++      const a = rec.action;
++      if (a.type === 'choose') {
++        const name = model.choice && model.choice.kind === 'gift' ? (T.GIFTS[a.id] || {}).name : T.toolName(a.id);
++        return name ? [[name], AUTO_WORDS.confirm] : null;
++      }
++      if (a.type === 'reroll') return [AUTO_WORDS.reroll];
++      if (a.type === 'event') return [a.accept ? AUTO_WORDS.accept : AUTO_WORDS.skip];
++      if (a.type === 'stopchain' || (a.type === 'end' && reader.result && reader.result.chain)) return [AUTO_WORDS.cancel];
++      return null;
++    }
++    // Where the board's own move is: [[x, y], ...] or null.
++    function autoPoints(a, r) {
++      const cellAt = (n) => (r.cells[n] && r.cells[n].x != null ? [Math.round(r.cells[n].x), Math.round(r.cells[n].y)] : null);
++      if (a.type === 'patrol' && r.doors) {
++        const i = r.doors.cells.indexOf(a.cell);
++        const b = i >= 0 ? r.doors.boxes[i] : null;
++        return b ? [[Math.round((b[0] + b[2]) / 2), Math.round((b[1] + b[3]) / 2)]] : null;
++      }
++      if (a.type === 'devour' || a.type === 'hunt' || a.type === 'chain') {
++        if (r.decision && r.decision.office) return null;
++        const p = cellAt(a.to); // double-click a meal; a chain's pick is on the dimmed board
++        return p ? [p, p] : null;
++      }
++      const spot = r.decision && r.decision.spot;
++      if (!spot) return null;
++      if (a.type === 'swap' && spot.replace) return [spot.replace];
++      if (a.type === 'end' && !r.chain && spot.end) return [spot.end];
++      if (a.type === 'office' && r.decision.office && spot[a.choice]) return [spot[a.choice]];
++      return null;
++    }
++    // The advice now, without the text search: { key, kind, label, last, points | stages }.
++    function autoAdvice() {
++      if (!fresh() || !settled()) return null;
++      const rec = recommendation();
++      const r = reader.result;
++      if (!rec || !rec.action) return null;
++      const a = rec.action;
++      // The run's last day: this End is the run's last click.
++      const last = a.type === 'end' && model.day >= model.maxDays;
++      const base = { kind: a.type, label: rec.label, last };
++      const stages = autoStages(rec);
++      const points = r && r.ok ? autoPoints(a, r) : null;
++      if (stages && !points) return Object.assign(base, { key: `${model.day}:${a.type}:${rec.label}:${model.choice ? model.choice.kind : ''}`, stages });
++      if (!r || !r.ok || !reader.image) return null;
++      const key = `${reader.id}:${a.type}:${rec.label}`;
++      return points ? Object.assign(base, { key, points, w: reader.image.width, h: reader.image.height }) : Object.assign(base, { key, points: null });
++    }
++    // The first box whose words read as one of the phrases, as a point.
++    async function autoFind(shot, phrases) {
++      const worker = await ocrWorker();
++      if (!worker) return { seen: [] };
++      const bmp = await createImageBitmap(shot);
++      const scale = Math.min(1, 2000 / bmp.width);
++      const canvas = document.createElement('canvas');
++      canvas.width = Math.round(bmp.width * scale);
++      canvas.height = Math.round(bmp.height * scale);
++      canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
++      const data = (await worker.recognize(canvas)).data;
++      const words = (data.words || []).filter((w) => autoLetters(w.text).length);
++      const want = phrases.map(autoLetters);
++      let best = null;
++      for (let i = 0; i < words.length; i++) {
++        let text = '';
++        for (let k = i; k < Math.min(words.length, i + 4); k++) {
++          text += autoLetters(words[k].text);
++          for (const w of want) {
++            if (!w) continue;
++            // Short words (ok, no) must match whole, longer names within 30%.
++            const d = text === w ? 0 : w.length <= 3 ? 9 : editDistance(text, w) / w.length;
++            if (d <= 0.3 && (!best || d < best.d)) best = { d, from: i, to: k };
++          }
++        }
++      }
++      const seen = words.slice(0, 60).map((w) => w.text);
++      if (!best) return { seen };
++      const part = words.slice(best.from, best.to + 1);
++      const x = (Math.min(...part.map((w) => w.bbox.x0)) + Math.max(...part.map((w) => w.bbox.x1))) / 2 / scale;
++      const y = (Math.min(...part.map((w) => w.bbox.y0)) + Math.max(...part.map((w) => w.bbox.y1))) / 2 / scale;
++      return { point: [Math.round(x), Math.round(y)], w: bmp.width, h: bmp.height, seen };
++    }
++    const auto = { sent: '', key: '', stage: 0, tries: 0, shot: '', busy: false };
++    const autoPost = (t) => fetch('/__auto', { method: 'POST', body: JSON.stringify(t), keepalive: true }).catch(() => {});
++    async function autoTick() {
++      if (auto.busy) return;
++      auto.busy = true;
++      try {
++        const t = autoAdvice();
++        if (!t) return;
++        if (t.stages) {
++          if (auto.key !== t.key) Object.assign(auto, { key: t.key, stage: 0, tries: 0, shot: '', sent: '' });
++          if (auto.stage >= t.stages.length) return;
++          const id = `${t.key}#${auto.stage}`;
++          const state = await (await fetch('/__auto?state=1', { cache: 'no-store' })).json();
++          // The clicker did this stage: on to the next.
++          if (state.ack === id) {
++            auto.stage += 1;
++            auto.tries = 0;
++            auto.sent = '';
++            return;
++          }
++          if (state.shot && state.shot !== auto.shot && state.shot.startsWith(`${id}@`)) {
++            auto.shot = state.shot;
++            const png = await (await fetch('/__auto/shot', { cache: 'no-store' })).blob();
++            const f = await autoFind(png, t.stages[auto.stage]);
++            auto.tries += 1;
++            if (f.point) {
++              await autoPost({ key: id, kind: t.kind, label: t.label, last: t.last && auto.stage === t.stages.length - 1, points: [f.point], w: f.w, h: f.h, seen: f.seen });
++              auto.sent = id;
++              return;
++            }
++            // Not on this picture. Stages after the first are optional (the
++            // pick may not need a Confirm); the first retries a few times.
++            if (auto.tries >= AUTO_STAGE_TRIES) {
++              if (auto.stage > 0) auto.stage = t.stages.length;
++              else await autoPost({ key: id, kind: t.kind, label: t.label, points: null, miss: true, seen: f.seen });
++              return;
++            }
++            auto.sent = '';
++          }
++          // Ask the clicker for a picture of the window for this stage.
++          if (auto.sent !== `${id}:${auto.tries}`) {
++            auto.sent = `${id}:${auto.tries}`;
++            await autoPost({ key: id, kind: t.kind, label: t.label, last: false, need: true, points: null, tries: auto.tries });
++          }
++          return;
++        }
++        if (t.points && t.key !== auto.sent) {
++          auto.sent = t.key;
++          await autoPost(t);
++        }
++      } catch (e) {
++        // no target this time
++      } finally {
++        auto.busy = false;
++      }
++    }
++    setInterval(autoTick, 300);
+     window.TartarusAnalyzer = {
+       readFrame: (bitmap) => new Promise((resolve) => readBitmap(bitmap, { quiet: true, folded: true, onRead: resolve })),
+       readPick: (bitmap) => readPick(bitmap),
+@@ -3396,14 +3636,15 @@
        },
        useReading: () => useScan(),
        ask: () => ask(true),
@@ -398,8 +559,45 @@ index f5cacd5..65b4b24 100644
      if (m.state) c.state = m.state;
      if (m.asked) c.asked = true;
      renderCaptures();
+diff --git a/js/scan.js b/js/scan.js
+index 7d44f04..a83c74f 100644
+--- a/js/scan.js
++++ b/js/scan.js
+@@ -1964,7 +1964,7 @@
+           else if (p.words.length === 1 && n >= 6 && n <= 8 && span > 3 && span < 6.5) labels.push({ x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
+           else if (n === 3 && span > 1.5 && span < 3.2) {
+             end = true;
+-            if (p.words.length === 1) ends.push({ x0: p.x0, mid: line.mid, h: line.h });
++            if (p.words.length === 1) ends.push({ x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
+           }
+           // Another card's label, for a row seen without its title.
+           if (n >= 6 && n <= 13 && span > 3 && span < 8) lefts.push({ x1: p.x1, mid: line.mid });
+@@ -2053,8 +2053,21 @@
+     // its red block left of "End" counts as that label (report 310).
+     const row = ends.some((e) => lefts.some((l) => Math.abs(l.mid - e.mid) < e.h / 2 && l.x1 < e.x0 && e.x0 - l.x1 < 30 * e.h) || (consume && redX < e.x0 && e.x0 - redX < 30 * e.h));
+     if (!title && !(row && (consume || replace))) return null;
+-    if (office) return { office: true, replace: false, consume: false, end: false, title };
+-    return { replace, consume, end, title, red: Math.round(1000 * red) / 1000 };
++    // Local build (autoclick): where each card's label sits, in picture pixels.
++    const mid = (l) => [Math.round((l.x0 + l.x1) / 2), Math.round(l.mid)];
++    const spot = {};
++    if (office) {
++      const ins = single.find((a) => a.n >= 8 && a.n <= 10 && a.span > 4.3 && a.span < 6.5 && redBy(a) < 0.01);
++      const bes = single.find((b) => ins && b.n >= 5 && b.n <= 6 && b.span > 3.3 && b.span < 5.5 && b.x0 > ins.x1 && Math.abs(b.mid - ins.mid) < ins.h / 2 && redBy(b) < 0.01);
++      if (ins) spot.instigate = mid(ins);
++      if (bes) spot.bestow = mid(bes);
++      return { office: true, replace: false, consume: false, end: false, title, spot };
++    }
++    const rep = labels.find((l) => l.red < 0.01);
++    if (rep) spot.replace = mid(rep);
++    const en = ends.find((e) => e.x1);
++    if (en) spot.end = mid(en);
++    return { replace, consume, end, title, red: Math.round(1000 * red) / 1000, spot };
+   }
+ 
+   // ---------- Everything ----------
 diff --git a/js/solver.js b/js/solver.js
-index 8eaf093..2e69f9f 100644
+index 8eaf093..8cf1009 100644
 --- a/js/solver.js
 +++ b/js/solver.js
 @@ -18,6 +18,7 @@
@@ -436,7 +634,7 @@ index 8eaf093..2e69f9f 100644
  
    // Tuned weights for each kind of run: drills with tool rewards on or off.
    // The solver picks by the run's settings. From
-@@ -76,12 +88,42 @@
+@@ -76,12 +88,44 @@
    // day 1: +0.066 ±0.031 Rainbows a run on fresh seeds. wForged and wFire
    // measured no gain and stay 0.
    const PROFILES = {
@@ -462,9 +660,11 @@ index 8eaf093..2e69f9f 100644
 +    let id = '';
 +    if (st.params.rewards && st.tools && st.tools.length) id = TOOL_ORDER.find((t) => t.split('+').every((x) => st.tools.includes(x))) || '';
 +    const contract = st.params.rewards && st.startEvent && CONTRACT_PROFILES[st.startEvent] ? st.startEvent : '';
-+    if (!id && !contract) return PROFILES[st.params.rewards ? 'rewards' : 'notools'];
-+    const key = `${id}|${contract}`;
-+    if (!toolProfileCache.has(key)) toolProfileCache.set(key, Object.assign({}, PROFILES.rewards, id ? TOOL_PROFILES[id] : {}, contract ? CONTRACT_PROFILES[contract] : {}));
++    // A contract with an instrument held ("cagefight+trap"), over both.
++    const combo = st.params.rewards && st.startEvent && st.tools ? st.tools.map((t) => `${st.startEvent}+${t}`).find((k) => CONTRACT_PROFILES[k]) || '' : '';
++    if (!id && !contract && !combo) return PROFILES[st.params.rewards ? 'rewards' : 'notools'];
++    const key = `${id}|${contract}|${combo}`;
++    if (!toolProfileCache.has(key)) toolProfileCache.set(key, Object.assign({}, PROFILES.rewards, id ? TOOL_PROFILES[id] : {}, contract ? CONTRACT_PROFILES[contract] : {}, combo ? CONTRACT_PROFILES[combo] : {}));
 +    return toolProfileCache.get(key);
    };
 -  const paramsFor = (st) => PROFILES[st.params.rewards ? 'rewards' : 'notools'];
@@ -483,7 +683,7 @@ index 8eaf093..2e69f9f 100644
  
    // Measured Rainbows per run for sets of up to 4 instruments held from day
    // 1 (js/tool-combos.js, from the lab's combos mode). Without it, the
-@@ -140,28 +182,40 @@
+@@ -140,28 +184,40 @@
    // ---------- Chain math ----------
  
    // Everything a decision needs, computed once per position.
@@ -533,7 +733,7 @@ index 8eaf093..2e69f9f 100644
      // Under Cage Fight, both meals at every rarity.
      const doubleFrom = T.cageFight && T.cageFight(st) ? 0 : Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? T.DEFAULT_PARAMS.doubleEatTier : RAINBOW;
      const v = [0, 1, 2, 3, 4, 5].map((t) => P.tierBase ** t);
-@@ -201,6 +255,12 @@
+@@ -201,6 +257,12 @@
        crown,
        maul,
        collar: has(st, 'collar'),
@@ -546,7 +746,7 @@ index 8eaf093..2e69f9f 100644
        revenge: has(st, 'revenge') && sealed > 0,
        axeDoors: has(st, 'axe') ? Math.min(2, sealed) : 0,
        dogtag: has(st, 'dogtag'),
-@@ -296,12 +356,12 @@
+@@ -296,12 +358,12 @@
    // stops when no meal is worth eating (stopMargin).
    function feed(ctx, t, b, comp, crowd) {
      let key = `${t}${b}${ctx.muzzle ? `m${crowd}` : ''}`;
@@ -562,7 +762,7 @@ index 8eaf093..2e69f9f 100644
        for (const f of (mt !== t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
          if (!comp[mt * 4 + f]) continue;
          comp[mt * 4 + f] -= 1;
-@@ -337,6 +397,15 @@
+@@ -337,6 +399,15 @@
      return ctx.maul && b === MAMMOTH ? RAINBOW - 1 : t;
    }
  
@@ -578,7 +778,7 @@ index 8eaf093..2e69f9f 100644
    // Expected change in value from a bite: the chosen meal, then the rest of
    // the chain. `chained` marks a bite inside a chain, after the first.
    // `comp` leaves out the eater and still holds the meal.
-@@ -353,7 +422,7 @@
+@@ -353,7 +424,7 @@
    // The best first meal for an eater of this tier and beast, by expected value.
    function bestMeal(ctx, tier, beast, comp, crowd) {
      let best = { value: -Infinity, meal: -1 };
@@ -587,7 +787,7 @@ index 8eaf093..2e69f9f 100644
        for (const f of (mt !== tier ? ctx.countersAt(tier) : ctx.eatsAt(tier))[beast]) {
          if (!comp[mt * 4 + f]) continue;
          const value = devourDelta(ctx, tier, beast, f, false, comp, crowd, false, mt);
-@@ -392,11 +461,11 @@
+@@ -392,11 +463,11 @@
      };
      const eat = (t, b) => {
        let key = `${t}${b}`;
@@ -601,7 +801,7 @@ index 8eaf093..2e69f9f 100644
          for (const f of (mt !== t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
            if (!comp[mt * 4 + f]) continue;
            comp[mt * 4 + f] -= 1;
-@@ -681,6 +750,14 @@
+@@ -681,6 +752,14 @@
          const shown = c.known && c.hidden ? [0, 1, 2, 3, 4].map((t) => (t === Math.min(4, c.hidden.tier) ? 1 : 0)) : null;
          const dist = shown || (c.atLeast ? floorDist(ctx.openDist, c.atLeast) : null);
          score += dist ? freshValue(ctx, tagged(ctx, dist), board.comp, board.crowd + 1, swapLeft) : freshNow();
@@ -616,7 +816,7 @@ index 8eaf093..2e69f9f 100644
          // Executioner's Blacklist: opening this door leaves 5 or fewer locked,
          // so 2 random inmates rise a tier.
          if (ctx.blacklist && ctx.sealed - 1 <= 5) score += 2 * ctx.lift;
-@@ -804,6 +881,69 @@
+@@ -804,6 +883,69 @@
      return linkValue(st, ctx, link) * (certain || link.prey === inmate.id ? 1 : 0.75);
    }
  
@@ -686,7 +886,7 @@ index 8eaf093..2e69f9f 100644
    // Today's devour options for the warden's inmate, valued. Best first.
    // While a chain waits for a pick, they're the eater's next meals.
    function devourScores(st, ctx) {
-@@ -825,7 +965,19 @@
+@@ -825,7 +967,19 @@
          // Crowded Beastcage: 40% of the time the meal's cell opens again with
          // someone new (the chain after the first bite isn't counted).
          const cage = ctx.cage ? ctx.P.wCage * 0.4 * ctx.P.wOpen * ctx.openValue : 0;
@@ -707,7 +907,7 @@ index 8eaf093..2e69f9f 100644
        })
        .sort((a, b) => b.score - a.score);
    }
-@@ -837,6 +989,13 @@
+@@ -837,6 +991,13 @@
      const here = st.cells[st.position];
      if (!here || here.sealed || !here.inmate || !canSwapNow(st) || ctx.swapCap < 0) return -Infinity;
      let gain = swapValue(ctx, here.inmate.tier) - linkLoss(st, ctx, here.inmate, true);
@@ -721,7 +921,7 @@ index 8eaf093..2e69f9f 100644
      if (here.ivory) {
        const board = st.cells.filter((c) => !c.sealed && c.inmate && c.inmate.tier < RAINBOW);
        const lift = board.reduce((sum, c) => sum + ctx.v[c.inmate.tier + 1] - ctx.v[c.inmate.tier], 0) / Math.max(1, board.length);
-@@ -911,6 +1070,7 @@
+@@ -911,6 +1072,7 @@
          value += boardValue(trial, context(trial, P));
        }
        value /= samples;
@@ -729,7 +929,7 @@ index 8eaf093..2e69f9f 100644
        if (!best || value > best.value) best = { id, value };
      }
      return best ? best.id : options[0];
-@@ -1133,15 +1293,81 @@
+@@ -1133,15 +1295,81 @@
  
    // ---------- Monte Carlo solver ----------
  
@@ -813,7 +1013,7 @@ index 8eaf093..2e69f9f 100644
    // Re-rolls everything the player can't see: the game's dice, and any
    // occupant behind a door that hasn't been fully revealed.
    function hideFuture(st, seed) {
-@@ -1497,7 +1723,7 @@
+@@ -1497,7 +1725,7 @@
      return null;
    }
  
