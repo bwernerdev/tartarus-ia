@@ -1,5 +1,5 @@
 diff --git a/js/analyze.js b/js/analyze.js
-index a6c9f4e..c3c9bc6 100644
+index a6c9f4e..3b8232e 100644
 --- a/js/analyze.js
 +++ b/js/analyze.js
 @@ -44,15 +44,32 @@
@@ -181,7 +181,19 @@ index a6c9f4e..c3c9bc6 100644
    // The strategy's instant pick, unless the live check finds a clearly better
    // move (by more than its paired margin), so the advice doesn't flicker.
    function bestMove() {
-@@ -1244,6 +1329,7 @@
+@@ -740,7 +825,10 @@
+       const why = mine === live ? pick.why : `${pick.why} The live check rates it about equal to the best.`;
+       return Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why, option: mine });
+     }
+-    return { action: live.action, label: live.label, why: `The playouts found a better move than the strategy’s pick${pick ? ` (${pick.label})` : ''}.`, live: true, rounds: r.rounds, option: live };
++    // Local build: the other move isn't named (the overlay's card showed two
++    // moves at once and the player couldn't tell which was the advice); the
++    // page's list still shows every option.
++    return { action: live.action, label: live.label, why: 'The playouts found a better move than the strategy’s quick pick.', live: true, rounds: r.rounds, option: live };
+   }
+ 
+   function fmtOption(goal, o, st) {
+@@ -1244,6 +1332,7 @@
      // Always through setHTML, which skips what it wrote last: a headline
      // written past it left a new check showing the old move.
      if (stale) setHTML($('az-res-move'), 'Press Recheck for advice on this board');
@@ -189,7 +201,19 @@ index a6c9f4e..c3c9bc6 100644
      else if (working) setHTML($('az-res-move'), `${SPIN}Working it out…`);
      else setHTML($('az-res-move'), esc(rec ? rec.label : 'Nothing to decide here.'));
      $('az-do').hidden = !rec || stale;
-@@ -3396,14 +3482,15 @@
+@@ -1339,7 +1428,10 @@
+     $('az-res-note').textContent = working || shown.length < 2
+       ? ''
+       : close
+-        ? 'The top moves are within the margin of error: either is fine.'
++        ? // Local build: worded without "margin of error", which the overlay's
++          // card takes as its cue to show a second move ("About as good: …")
++          // beside the advice; the list above still shows them all.
++          'The top moves are about equal: the recommended one is as good as any.'
+         : 'Each option is played out from your board with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are Rainbows in the vault by the end of the run.';
+   }
+ 
+@@ -3396,14 +3488,15 @@
        },
        useReading: () => useScan(),
        ask: () => ask(true),
