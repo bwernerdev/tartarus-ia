@@ -1,0 +1,784 @@
+diff --git a/js/analyze.js b/js/analyze.js
+index c2aa2f8..e58955c 100644
+--- a/js/analyze.js
++++ b/js/analyze.js
+@@ -44,15 +44,32 @@
+     // Without storage, screenshots stay hidden.
+   }
+   const SAVE_KEY = 'tartarus-sim:save:v2';
+-  const PLAYOUT_BUDGET = 9600; // playouts per check, shared across the options
++  // Local build: a deeper check on close calls. Clear calls still stop early
++  // (CLEAR_SE), so only the hard decisions take longer. Override with
++  // localStorage 'tartarus-local:tuning' = {"budget":..,"maxPer":..,"ms":..,"switchMin":..}.
++  // switchMin: with deeper checks the paired margin (1.96 gapSe) is narrow
++  // enough to trust smaller gains over the strategy's pick (live: 0.05).
++  // Lite (window.TARTARUS_LITE, set by the server of the friend's build): a
++  // check of at most 1.5 s on at most half the cores (4 at most), so a
++  // slower PC running the game doesn't stutter. Still about 4 times the
++  // live check's playouts.
++  const LITE = typeof window !== 'undefined' && !!window.TARTARUS_LITE;
++  const LOCAL_TUNING = (() => {
++    const out = LITE ? { budget: 16000, maxPer: 3000, ms: 1500, switchMin: 0.02 } : { budget: 40000, maxPer: 6000, ms: 3000, switchMin: 0.02 };
++    try {
++      Object.assign(out, JSON.parse(localStorage.getItem('tartarus-local:tuning') || '{}'));
++    } catch (e) {}
++    return out;
++  })();
++  const PLAYOUT_BUDGET = LOCAL_TUNING.budget; // playouts per check, shared across the options (live: 9600)
+   const LIVE_MIN = 150; // playouts per option before the live check can lead
+-  const SWITCH_MIN = 0.05; // Rainbows a live pick must gain over the strategy's to replace it
++  const SWITCH_MIN = LOCAL_TUNING.switchMin; // Rainbows a live pick must gain over the strategy's to replace it
+   // The check ends early once the leader is ahead of every other move by
+   // CLEAR_SE of its paired margins (after LIVE_MIN playouts each), and in any
+   // case after CHECK_MS, with what it has then. The user: a decision within a
+   // second of the picture, "faster is way better".
+   const CLEAR_SE = 3;
+-  const CHECK_MS = 700;
++  const CHECK_MS = LOCAL_TUNING.ms; // live: 700
+   const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'ratway', 'choice'];
+   const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick, or Cancel', event: 'A special event', ratway: 'Sewer Ratway: any cell', choice: 'A tool or gift' };
+   const BEAST_KEYS = { m: 'mammoth', l: 'lion', w: 'wolf', r: 'rat' };
+@@ -477,16 +494,41 @@
+ 
+   // ---------- Analysis ----------
+ 
+-  const solver = { workers: null, failed: false, id: 0, st: null, key: '', instant: null, result: null, shares: null, meta: null, goal: '' };
++  const solver = { workers: null, failed: false, failedAt: 0, id: 0, st: null, key: '', instant: null, result: null, shares: null, meta: null, goal: '' };
+   // The live check runs on a worker for every core but one, or on fewer when
+   // the page is told (setCores: the desktop app's processor setting), each
+   // playing its share of the rounds with its own dice. It runs for a few
+   // seconds after each board. A minute after the last check the workers are
+   // let go, and their memory with them; the next check starts new ones.
+-  const MOST_WORKERS = Math.max(1, (navigator.hardwareConcurrency || 2) - 1);
+-  const WORKERS_IDLE_MS = 60000;
++  const MOST_WORKERS = LITE ? Math.max(1, Math.min(4, Math.floor((navigator.hardwareConcurrency || 2) / 2))) : Math.max(1, (navigator.hardwareConcurrency || 2) - 1);
++  const WORKERS_IDLE_MS = (LITE ? 2 : 15) * 60000; // local build: warm for the next board after a pause (live: a minute); idle workers use no CPU
+   let coreCap = 0; // 0: every core but one
+   const workerCount = () => (coreCap ? Math.min(MOST_WORKERS, coreCap) : MOST_WORKERS);
++  // Local build: the worker's code and its three scripts, read once while the
++  // local server is up, so new workers start even if it has stopped since
++  // (they would fail to load, and the check would fall back to this page's
++  // thread, at most 300 playouts). Without it, the worker file as usual.
++  const WORKER_FILE = `js/solver-worker.js${SCRIPT_QUERY}`;
++  let workerBlob = null;
++  let useBlob = true; // after a failure, the other one next time
++  (async () => {
++    try {
++      const get = async (f) => {
++        const res = await fetch(`js/${f}${SCRIPT_QUERY}`);
++        if (!res.ok) throw new Error(f);
++        return res.text();
++      };
++      const [main, ...libs] = await Promise.all(['solver-worker.js', 'engine.js', 'tool-combos.js', 'solver.js'].map(get));
++      const line = /^importScripts\(.*\);$/m;
++      if (!line.test(main)) return;
++      const code = `${libs.join('\n;\n')}\n;(function () {\n${main.replace(line, '')}\n})();\n`;
++      workerBlob = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
++    } catch (e) {
++      // The worker file, as usual.
++    }
++  })();
++  // After a worker fails, the next check tries new ones again this long after.
++  const WORKER_RETRY_MS = 10000;
+   let idleTimer = 0;
+   const poolBusy = () => !!(solver.workers && solver.shares && !solver.shares.every((s) => s.done));
+   function releaseWorkers() {
+@@ -566,7 +608,7 @@
+       solver.instant = null;
+     }
+     const options = S.candidates(st).length;
+-    const rollouts = clamp(Math.round(PLAYOUT_BUDGET / Math.max(1, options)), 400, 1600);
++    const rollouts = clamp(Math.round(PLAYOUT_BUDGET / Math.max(1, options)), 400, LOCAL_TUNING.maxPer); // live cap: 1600
+     solver.target = rollouts;
+     solver.startedAt = Date.now();
+     startCheck(solver.id, st, rollouts);
+@@ -577,24 +619,38 @@
+ 
+   function startCheck(id, st, rollouts) {
+     const state = JSON.parse(JSON.stringify(st));
+-    if (!solver.workers && !solver.failed) {
++    // Local build: a failure isn't for good. The next check after
++    // WORKER_RETRY_MS starts new workers again (the live build stays on the
++    // page's thread from then on, at most 300 playouts a move).
++    if (!solver.workers && (!solver.failed || Date.now() - solver.failedAt >= WORKER_RETRY_MS)) {
++      const url = useBlob && workerBlob ? workerBlob : WORKER_FILE;
++      const failed = (why) => {
++        console.warn(`analyzer workers failed (${why}); this check runs on the page, the next one tries again`);
++        solver.failed = true;
++        solver.failedAt = Date.now();
++        // The next try loads the other way (saved code or the worker file).
++        useBlob = url === WORKER_FILE;
++      };
+       try {
+         solver.workers = Array.from({ length: workerCount() }, (_, k) => {
+-          const worker = new Worker(`js/solver-worker.js${SCRIPT_QUERY}`);
+-          worker.onmessage = (e) => onShare(k, e.data);
+-          worker.onerror = () => {
++          const worker = new Worker(url);
++          worker.onmessage = (e) => {
++            solver.failed = false;
++            onShare(k, e.data);
++          };
++          worker.onerror = (e) => {
+             // Fall back to this page's thread, and redo the check.
+-            if (!solver.workers) return;
++            if (!solver.workers || !solver.workers.includes(worker)) return;
+             for (const w of solver.workers) w.terminate();
+             solver.workers = null;
+             solver.shares = null;
+-            solver.failed = true;
++            failed((e && e.message) || 'could not start');
+             if (solver.st) startCheck(solver.id, solver.st, Math.min(rollouts, 300));
+           };
+           return worker;
+         });
+       } catch (e) {
+-        solver.failed = true;
++        failed(e.message);
+         solver.workers = null;
+       }
+     }
+@@ -683,6 +739,13 @@
+     if (r.done || r.options.length <= 1) return true;
+     const [top, ...rest] = r.options;
+     if (r.rounds >= LIVE_MIN && rest.every((o) => o.gapSe > 0 && top.mean - o.mean > CLEAR_SE * o.gapSe)) return true;
++    // Local build: the advice is already decided. The strategy's pick leads,
++    // and no other move can get ahead of it by more than SWITCH_MIN (with
++    // CLEAR_SE of margin), which bestMove() needs to replace it: more
++    // playouts can't change the advice, so a near tie stops here instead of
++    // running to CHECK_MS.
++    const pick = solver.instant;
++    if (r.rounds >= LIVE_MIN && pick && S.sameAction(top.action, pick.action) && rest.every((o) => top.mean - o.mean >= CLEAR_SE * o.gapSe - SWITCH_MIN)) return true;
+     // Out of time: the advice is the check's leader once it has LIVE_MIN
+     // playouts each, else the strategy's own pick (recommendation()).
+     return Date.now() - solver.startedAt >= CHECK_MS;
+@@ -717,6 +780,28 @@
+     return Object.assign({}, rec, { label: 'Cancel the consume, then end the day', why: `Your game shows a meal pick, where a meal or Cancel are the choices. ${rec.why || ''}`.trim() });
+   }
+ 
++  // Local build: while the live check runs, the strategy's own pick is shown
++  // at once as the likely move (on the page and on the overlay's card), marked
++  // as still being checked; the checked advice replaces it a moment later.
++  // The strategy's pick is the checked one most of the time (it loses 0.057
++  // Rainbows a decision to the long check: local/mc-study.txt). Off with
++  // localStorage 'tartarus-local:provisional' = '0'.
++  const PROVISIONAL = (() => {
++    try {
++      return localStorage.getItem('tartarus-local:provisional') !== '0';
++    } catch (e) {
++      return true;
++    }
++  })();
++  function provisional() {
++    const pick = solver.instant;
++    if (!PROVISIONAL || !pick || !pick.action) return null;
++    const rd = reader.reading;
++    const cancel = pick.action.type === 'end' && rd && rd.chain && model.step === 'manage';
++    const label = cancel ? 'Cancel the consume, then end the day' : pick.label;
++    return Object.assign({ live: false }, pick, { label, provisional: true, why: `Likely, still being checked (${Math.round(100 * progress())}%): ${pick.why || label}` });
++  }
++
+   // The strategy's instant pick, unless the live check finds a clearly better
+   // move (by more than its paired margin), so the advice doesn't flicker.
+   function bestMove() {
+@@ -1241,6 +1326,7 @@
+     // Always through setHTML, which skips what it wrote last: a headline
+     // written past it left a new check showing the old move.
+     if (stale) setHTML($('az-res-move'), 'Press Recheck for advice on this board');
++    else if (working && provisional()) setHTML($('az-res-move'), `${SPIN}Likely: ${esc(provisional().label)}, checking…`);
+     else if (working) setHTML($('az-res-move'), `${SPIN}Working it out…`);
+     else setHTML($('az-res-move'), esc(rec ? rec.label : 'Nothing to decide here.'));
+     $('az-do').hidden = !rec || stale;
+@@ -3389,14 +3475,15 @@
+       },
+       useReading: () => useScan(),
+       ask: () => ask(true),
+-      recommendation: () => (fresh() && settled() ? recommendation() : null),
++      // Local build: the likely move while the check runs (provisional()).
++      recommendation: () => (fresh() ? (settled() ? recommendation() : provisional()) : null),
+       // What the reader made of the last picture, in full (the desktop app's
+       // test record keeps it).
+       readingSummary: () => (reader.result && reader.image ? readingSummary(true) : ''),
+       // The live check's workers: how many it may use (setCores, 0 for every
+       // core but one) and how many are running now (0 once let go).
+       setCores: (n) => setCores(n),
+-      cores: () => ({ cap: coreCap, use: workerCount(), most: MOST_WORKERS, running: solver.workers ? solver.workers.length : 0, onPage: !!solver.failed }),
++      cores: () => ({ cap: coreCap, use: workerCount(), most: MOST_WORKERS, running: solver.workers ? solver.workers.length : 0, onPage: !solver.workers && !!solver.failed }),
+       day: () => model.day,
+       toast,
+     };
+diff --git a/js/capture.js b/js/capture.js
+index 730c0b3..35baeab 100644
+--- a/js/capture.js
++++ b/js/capture.js
+@@ -18,7 +18,7 @@
+ (function () {
+   'use strict';
+ 
+-  const POLL_MS = 1000;
++  const POLL_MS = 250; // local build: new log lines seen within a quarter second (live: 1000)
+   const IDB = 'tartarus-sim-capture';
+   const listeners = { status: [], hit: [], seen: [], frame: [] };
+   // detail: whether the game writes the detail lines the triggers come from
+@@ -305,6 +305,105 @@
+     if (burst.hits.length < 40) burst.hits.push({ kind: hit.kind, at: hit.at, text: hit.text });
+     clearTimeout(burst.timer);
+     burst.timer = setTimeout(fire, burst.settle);
++    watchStill(burst);
++  }
++
++  // Local build: a board's picture as soon as the screen has moved and then
++  // stopped, instead of a fixed time after the log's last line (1.5 to
++  // 2.5 s). Small gray copies of frames STILL.every ms apart are compared:
++  // after some movement, STILL.need alike in a row and the picture goes. The
++  // picture at the usual time is still taken, and sent too only if the
++  // screen changed since, so the last board read is never an earlier one
++  // than before. Off with localStorage 'tartarus-local:early-picture' = '0'.
++  // The last 40 tries are kept in 'tartarus-local:early-stats', for tuning.
++  // Lite (window.TARTARUS_LITE): a frame every 200 ms instead of 120.
++  const STILL = { from: 250, every: window.TARTARUS_LITE ? 200 : 120, need: 2, diff: 1.2, w: 64, h: 36 };
++  let sketchCanvas = null;
++  function sketch(frame) {
++    if (!sketchCanvas) {
++      sketchCanvas = document.createElement('canvas');
++      sketchCanvas.width = STILL.w;
++      sketchCanvas.height = STILL.h;
++    }
++    const g = sketchCanvas.getContext('2d', { willReadFrequently: true });
++    g.drawImage(frame, 0, 0, STILL.w, STILL.h);
++    const d = g.getImageData(0, 0, STILL.w, STILL.h).data;
++    const out = new Uint8Array(STILL.w * STILL.h);
++    for (let i = 0, j = 0; i < d.length; i += 4, j += 1) out[j] = (3 * d[i] + 6 * d[i + 1] + d[i + 2]) / 10;
++    return out;
++  }
++  function apart(a, b) {
++    let sum = 0;
++    for (let i = 0; i < a.length; i += 1) sum += Math.abs(a[i] - b[i]);
++    return sum / a.length;
++  }
++  function earlyOff() {
++    try {
++      return localStorage.getItem('tartarus-local:early-picture') === '0';
++    } catch (e) {
++      return false;
++    }
++  }
++  function noteEarly(b, patch) {
++    try {
++      const key = 'tartarus-local:early-stats';
++      const list = JSON.parse(localStorage.getItem(key) || '[]');
++      list.push(Object.assign({ at: new Date().toISOString(), lines: b.hits.length }, b.stats, patch));
++      localStorage.setItem(key, JSON.stringify(list.slice(-40)));
++    } catch (e) {
++      // Only for tuning.
++    }
++  }
++  const treasureBoard = (b) => b.hits.some((h) => /ColoredPop/.test(h.text || ''));
++  function watchStill(b) {
++    if (b.watching || b.early || b.kind !== 'board' || earlyOff()) return;
++    b.watching = true;
++    b.stats = { started: Date.now(), diffs: [] };
++    let last = null;
++    let alike = 0;
++    let moved = false;
++    let lines = b.hits.length;
++    const stop = () => {
++      b.watching = false;
++    };
++    const look = async () => {
++      if (burst !== b || b.early || b.kind !== 'board' || treasureBoard(b)) return stop();
++      const frame = await grab();
++      if (!frame) return stop();
++      if (burst !== b) {
++        frame.close();
++        return stop();
++      }
++      let now = null;
++      try {
++        now = sketch(frame);
++      } catch (e) {
++        now = null;
++      }
++      if (!now) {
++        frame.close();
++        return stop();
++      }
++      const diff = last ? apart(now, last) : 0;
++      if (last && b.stats.diffs.length < 30) b.stats.diffs.push(Math.round(diff * 10) / 10);
++      if (diff > STILL.diff) moved = true;
++      // A new log line: something more may be on its way.
++      if (b.hits.length !== lines) {
++        lines = b.hits.length;
++        alike = 0;
++      } else alike = last && diff <= STILL.diff ? alike + 1 : 0;
++      last = now;
++      if (moved && alike >= STILL.need && !isBlank(frame)) {
++        b.early = now;
++        b.stats.waited = Date.now() - b.stats.started;
++        setState({ frames: state.frames + 1 });
++        emit('frame', { kind: b.kind, hits: b.hits.slice(), frame, blank: false, why: '', time: new Date(), early: true });
++        return;
++      }
++      frame.close();
++      setTimeout(look, STILL.every);
++    };
++    setTimeout(look, STILL.from);
+   }
+ 
+   async function fire() {
+@@ -312,6 +411,20 @@
+     burst = null;
+     if (!b) return;
+     const frame = await grab();
++    // An early picture went already: this one only if the screen changed.
++    if (b.early) {
++      let diff = Infinity;
++      try {
++        diff = frame ? apart(sketch(frame), b.early) : 0;
++      } catch (e) {
++        diff = Infinity;
++      }
++      noteEarly(b, { confirm: Math.round(diff * 10) / 10, resent: diff > 2 * STILL.diff });
++      if (diff <= 2 * STILL.diff) {
++        if (frame) frame.close();
++        return;
++      }
++    } else if (b.stats) noteEarly(b, { waited: null });
+     if (frame) setState({ frames: state.frames + 1 });
+     emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
+   }
+diff --git a/js/solver.js b/js/solver.js
+index 28d5692..9d14e09 100644
+--- a/js/solver.js
++++ b/js/solver.js
+@@ -18,6 +18,7 @@
+   const RAT = BEASTS.indexOf('rat');
+   const LION = BEASTS.indexOf('lion');
+   const MAMMOTH = BEASTS.indexOf('mammoth');
++  const WOLF = BEASTS.indexOf('wolf');
+   // The day's swap is still open: a day has a devour or a swap, not both.
+   // (An engine cached from before that rule has no canSwapNow.)
+   const canSwapNow = (st) => (T.canSwapNow ? T.canSwapNow(st) : st.used.swap < st.params.swapsPerDay);
+@@ -48,6 +49,8 @@
+     wForged: 0, // Forged Key: a door the patrol opens may open 1 more random locked cell (50%), as a share of its worth
+     wFire: 0, // Searing Branding Iron: a door the patrol opens may copy its inmate into a locked cell (35%), as a share of its worth
+     wCage: 1, // Crowded Beastcage: a devour's chance of reopening the meal's cell, as a share of its worth
++    wRav: 0, // Ravenous Chains (local build): an inmate beside tomorrow's top inmate is gone by morning, as a share of its worth
++    wCoin: 0, // Kin's Coin of Fate (local build): tomorrow morning's coin, as a share of its worth, for the pairs a move makes or breaks
+     rerollMargin: 0.02, // a pet's re-roll: only when a new offer's best averages this much more (Rainbows per run)
+     wStair: 0, // keeping a spread of beasts at each tier, so chains can go on
+     minDevour: 0, // skip devours worth less than this (-1e9: never skip)
+@@ -62,7 +65,16 @@
+     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
+     giftRank: null, // null scores the gifts on the spot; or a fixed order
+     giftChain: true, // Opulence's chain first: Horn for a Rainbow, then Thumb Ring, then Vintage (pickGift)
++    // Local build: a bonus to each Warden's Treasure gift on top of its board
++    // value right after it (pickGift), for what that value misses (more
++    // inmates to come, chains it sets up). Trained by strategy-sim.js
++    // train-gifts; 0 scores the gift on the spot only, as before.
++    gRing: 0,
++    gHorn: 0,
++    gWine: 0,
++    gBrand: 0,
+   };
++  const GIFT_BONUS = { ring: 'gRing', horn: 'gHorn', wine: 'gWine', brand: 'gBrand' };
+ 
+   // Tuned weights for each kind of run: drills with tool rewards on or off.
+   // The solver picks by the run's settings. From
+@@ -76,12 +88,42 @@
+   // day 1: +0.066 ±0.031 Rainbows a run on fresh seeds. wForged and wFire
+   // measured no gain and stay 0.
+   const PROFILES = {
+-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, wKeys: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'coin', 'maiden', 'shackles', 'scapegoat', 'revenge', 'muzzle', 'skewer', 'collar', 'ravenous', 'hook', 'saw', 'blacklist', 'guillotine', 'dogtag', 'tongs', 'stake', 'cage', 'whip', 'scales', 'keys', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
+-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'coin', 'maiden', 'shackles', 'scapegoat', 'revenge', 'muzzle', 'skewer', 'collar', 'ravenous', 'hook', 'saw', 'blacklist', 'guillotine', 'dogtag', 'tongs', 'stake', 'cage', 'whip', 'scales', 'keys', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
++    // Local build: retrained on 2026-10-18 under the current rules (fresh prisons: 4.6325 -> 4.7145), plus wCoin and wRav.
++    rewards: { tierBase: 2.5, rainbowMult: 1.125, wOpen: 1.125, wNow: 1.055, wWalk: 1.172, wStep: 0.5, wChain: 9, wStair: 0.125, swapMaxTier: 3, minDevour: 1, execMargin: 0, acceptChain: true, wCrow: 2, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, wKeys: 1, wUsurp: 1.5, wNest: -3, stopMargin: -1, wCage: 2.25, wShort: 0.5, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'coin', 'maiden', 'shackles', 'scapegoat', 'muzzle', 'revenge', 'ravenous', 'skewer', 'collar', 'hook', 'blacklist', 'saw', 'guillotine', 'dogtag', 'stake', 'tongs', 'cage', 'whip', 'keys', 'scales', 'fire', 'pestle', 'shortchain', 'axe', 'forged', 'ironbox'], wCoin: 0.5, wRav: 0.75 },
++    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['trap', 'maul', 'crown', 'rope', 'claws', 'coin', 'maiden', 'shackles', 'scapegoat', 'muzzle', 'revenge', 'ravenous', 'skewer', 'collar', 'hook', 'blacklist', 'saw', 'guillotine', 'dogtag', 'stake', 'tongs', 'cage', 'whip', 'keys', 'scales', 'fire', 'pestle', 'shortchain', 'axe', 'forged', 'ironbox'], wCoin: 0.5, wRav: 0.75 },
++  };
++  // Local build: weights for runs holding a key instrument, or a pair of them
++  // ("maiden+rope"), over the rewards profile (tools/strategy-sim.js
++  // train-tools; only changes that beat the weights in use on fresh prisons,
++  // applied by local/apply-results.js). The first entry in this order whose
++  // instruments are all held picks the profile; pairs come first.
++  const TOOL_PROFILES = {"coin":{"tierBase":2.25,"wOpen":1.406,"wNow":1.319,"wUsurp":0.375,"wShort":0.25,"wCage":1.125,"wStair":0.095,"stopMargin":1,"swapMaxTier":2,"swapMargin":-1},"crown":{"tierBase":2.25,"wOpen":1.406,"wNow":1.319,"wWalk":0.879,"wChain":20.25,"wUsurp":2.25,"wCrow":4,"wShort":0.1,"wStair":0.094,"minDevour":-1,"stopMargin":1},"trap":{"wOpen":1.055,"wNow":1.319,"wWalk":1.831,"wChain":6.75,"wCrow":1,"wShort":0.1,"wCage":3.375,"wStair":0.095,"stopMargin":1,"swapMargin":-2,"execMargin":-5},"maiden":{"tierBase":3,"rainbowMult":0.844,"wOpen":0.633,"wNow":0.791,"wWalk":0.879,"wStep":1,"wChain":4.5,"wUsurp":2.25,"wShort":0.1,"wCage":3.375,"wStair":0.282,"swapMaxTier":4,"execMargin":-5,"acceptChain":false},"maul":{"tierBase":2.25,"wNow":0.989,"wWalk":0.879,"wChain":13.5,"wUsurp":0.75,"wCrow":4,"wStair":0.063,"minDevour":-1,"stopMargin":0,"swapMargin":2,"execMargin":-5},"claws":{"tierBase":2.75,"rainbowMult":0.844,"wOpen":0.633,"wNow":1.319,"wWalk":1.099,"wChain":4.5,"wUsurp":1,"wCrow":1,"wShort":0,"minDevour":0,"swapMargin":2,"execMargin":-5},"maiden+rope":{"tierBase":3.25,"rainbowMult":0.844,"wOpen":0.356,"wNow":0.989,"wWalk":1.099,"wChain":2.25,"wUsurp":2.25,"wInstigate":0.125,"wCrow":1,"wShort":0.1,"wCage":7.595,"wStair":0.423,"swapMaxTier":4,"swapMargin":-2,"execMargin":5,"acceptChain":false},"maiden+scapegoat":{"tierBase":3.5,"rainbowMult":1.899,"wOpen":0.475,"wNow":0.791,"wWalk":1.374,"wStep":3,"wChain":6.75,"wUsurp":3.375,"wInstigate":0.125,"wCrow":4,"wShort":0,"wCage":0.844,"wStair":0.634,"swapMaxTier":4,"swapMargin":-2,"execMargin":-5,"acceptChain":false},"rope+trap":{"tierBase":2.75,"wOpen":1.649,"wNow":1.319,"wWalk":1.831,"wStep":1,"wChain":10.125,"wCage":0.844,"wStair":0.143,"minDevour":0,"stopMargin":1,"swapMaxTier":4,"swapMargin":-2,"execMargin":-5},"maul+rope":{"tierBase":2,"wNow":1.236,"wWalk":0.879,"wStep":0,"wChain":6.75,"wUsurp":1.688,"wInstigate":0.25,"wCrow":4,"wShort":0.1,"wCage":3.375,"wStair":0.063,"minDevour":0,"stopMargin":0,"swapMaxTier":4,"swapMargin":2,"execMargin":10},"claws+maul":{"tierBase":2.25,"wOpen":0.844,"wNow":1.545,"wWalk":0.659,"wChain":6.75,"wUsurp":0.375,"wCrow":4,"wStair":0.095,"minDevour":0,"swapMargin":1},"claws+crown":{"tierBase":2.25,"wOpen":1.054,"wNow":1.649,"wWalk":1.099,"wChain":15.188,"wUsurp":3.375,"wInstigate":0.25,"wCrow":1,"wShort":0,"wStair":0.094,"minDevour":0,"stopMargin":0,"swapMargin":2}};
++  const TOOL_ORDER = ["maiden+scapegoat","maiden+rope","claws+crown","claws+maul","rope+trap","maul+rope","coin","crown","trap","maiden","maul","claws"];
++  // Local build: weights for each run contract (Cage Fight, Iron Law,
++  // Tyranny, Opulence), trained by strategy-sim.js train-contracts and
++  // applied the same way, over the instrument's profile when there's one.
++  const CONTRACT_PROFILES = {"opulence":{"gRing":4,"gHorn":-4,"gWine":-8,"gBrand":8,"giftChain":true,"tierBase":2.75,"wOpen":1.406,"wNow":1.319,"wWalk":0.879,"wStep":1,"wNest":0,"wChain":13.5,"wUsurp":0.375,"wCrow":4,"wShort":0,"wCage":5.063,"wStair":0.032,"swapMargin":-2,"execMargin":10},"tyranny":{"gRing":-8,"gHorn":-16,"gWine":2,"gBrand":-8,"giftChain":false,"tierBase":2.75,"rainbowMult":0.844,"wOpen":1.406,"wNow":0.791,"wStep":1.5,"wNest":3,"wChain":4.5,"wUsurp":1,"wInstigate":0.25,"wCrow":4,"wShort":0.1,"wCage":5.063,"wStair":0.095,"minDevour":0,"stopMargin":0,"maidenSwapTier":4,"execMargin":5,"acceptChain":false},"cagefight":{"gRing":10,"gHorn":-8,"gWine":-16,"gBrand":-8,"giftChain":false,"tierBase":2,"wOpen":1.054,"wNow":0.989,"wWalk":0.879,"wChain":20.25,"wCage":0.563,"wStair":0.188,"stopMargin":0,"swapMargin":-2,"execMargin":10}};
++  const toolProfileCache = new Map();
++  const paramsFor = (st) => {
++    let id = '';
++    if (st.params.rewards && st.tools && st.tools.length) id = TOOL_ORDER.find((t) => t.split('+').every((x) => st.tools.includes(x))) || '';
++    const contract = st.params.rewards && st.startEvent && CONTRACT_PROFILES[st.startEvent] ? st.startEvent : '';
++    if (!id && !contract) return PROFILES[st.params.rewards ? 'rewards' : 'notools'];
++    const key = `${id}|${contract}`;
++    if (!toolProfileCache.has(key)) toolProfileCache.set(key, Object.assign({}, PROFILES.rewards, id ? TOOL_PROFILES[id] : {}, contract ? CONTRACT_PROFILES[contract] : {}));
++    return toolProfileCache.get(key);
+   };
+-  const paramsFor = (st) => PROFILES[st.params.rewards ? 'rewards' : 'notools'];
+ 
+-  const withDefaults = (p) => Object.assign({}, DEFAULTS, p || {});
++  // Local build: one merged copy per weights object (nothing writes to it),
++  // instead of a fresh one at every decision.
++  const mergedParams = new WeakMap();
++  const noParams = {};
++  const withDefaults = (p) => {
++    const key = p || noParams;
++    let merged = mergedParams.get(key);
++    if (!merged) mergedParams.set(key, (merged = Object.assign({}, DEFAULTS, key)));
++    return merged;
++  };
+ 
+   // Measured Rainbows per run for sets of up to 4 instruments held from day
+   // 1 (js/tool-combos.js, from the lab's combos mode). Without it, the
+@@ -140,28 +182,40 @@
+   // ---------- Chain math ----------
+ 
+   // Everything a decision needs, computed once per position.
+-  function context(st, params) {
+-    const P = withDefaults(params);
++  // Who eats whom (beast indices), by the instruments that change it. Built
++  // once per combination (local build: it was rebuilt at every decision);
++  // nothing writes to these lists.
++  const dietCache = new Map();
++  function diets(skewer, crown) {
++    const key = `${skewer ? 1 : 0}${crown ? 1 : 0}`;
++    let d = dietCache.get(key);
++    if (d) return d;
+     const chain = T.FOOD_CHAIN;
+     const eats = BEASTS.map((b) => chain[b].map(beastIndex));
+-    const skewer = has(st, 'skewer');
+     if (skewer) eats[RAT] = eats[RAT].concat(RAT);
+     // What each beast counters: under Cage Fight it can eat those at a
+     // lower rarity too (the Crown's other beasts only at its own).
+     const counters = eats.map((list) => list.slice());
+     // The Iron Crown of the Prison King: a Lion eats any beast.
+-    const crown = has(st, 'crown');
+     if (crown) eats[LION] = [0, 1, 2, 3];
+-    // The Elephant-Foot Maul: a Mammoth eats what it counters at a higher
+-    // rarity too, and rises to 2 tiers above its meal.
+-    const maul = has(st, 'maul');
+     // From params.doubleEatTier up (every rarity since 2026-10-17), Mammoths
+     // and Lions also eat their second meal (an engine cached from before has
+     // none).
+     const second = T.SECOND_MEAL || {};
+     const withSecond = (diet) => diet.map((list, b) => [...new Set(list.concat((second[BEASTS[b]] || []).map(beastIndex)))]);
+-    const eatsHigh = withSecond(eats);
+-    const countersHigh = withSecond(counters);
++    d = { eats, counters, eatsHigh: withSecond(eats), countersHigh: withSecond(counters) };
++    dietCache.set(key, d);
++    return d;
++  }
++
++  function context(st, params) {
++    const P = withDefaults(params);
++    const skewer = has(st, 'skewer');
++    const crown = has(st, 'crown');
++    // The Elephant-Foot Maul: a Mammoth eats what it counters at a higher
++    // rarity too, and rises to 2 tiers above its meal.
++    const maul = has(st, 'maul');
++    const { eats, counters, eatsHigh, countersHigh } = diets(skewer, crown);
+     // Under Cage Fight, both meals at every rarity.
+     const doubleFrom = T.cageFight && T.cageFight(st) ? 0 : Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? T.DEFAULT_PARAMS.doubleEatTier : RAINBOW;
+     const v = [0, 1, 2, 3, 4, 5].map((t) => P.tierBase ** t);
+@@ -201,6 +255,12 @@
+       crown,
+       maul,
+       collar: has(st, 'collar'),
++      // Fanged Guillotine: Wolves also eat their meals at a lower rarity
++      // (engine canEat). Local build: the chain math missed these meals.
++      guillotine: has(st, 'guillotine'),
++      coin: has(st, 'coin') && !!P.wCoin,
++      ravenous: has(st, 'ravenous') && P.wRav ? ravenousDoom(st, P) : null,
++      pestle: has(st, 'pestle'),
+       revenge: has(st, 'revenge') && sealed > 0,
+       axeDoors: has(st, 'axe') ? Math.min(2, sealed) : 0,
+       dogtag: has(st, 'dogtag'),
+@@ -290,12 +350,12 @@
+   // stops when no meal is worth eating (stopMargin).
+   function feed(ctx, t, b, comp, crowd) {
+     let key = `${t}${b}${ctx.muzzle ? `m${crowd}` : ''}`;
+-    for (let i = ctx.fight ? 0 : t * 4; i < 20; i++) key += String.fromCharCode(48 + comp[i]);
++    for (let i = keyFrom(ctx, t); i < 20; i++) key += String.fromCharCode(48 + comp[i]);
+     const hit = ctx.memo.get(key);
+     if (hit !== undefined) return hit;
+     let out = -Infinity;
+-    // Under Cage Fight, countered meals of a lower rarity too.
+-    for (let mt = ctx.fight ? 0 : t; mt <= topMeal(ctx, t, b); mt++) {
++    // Under Cage Fight (or a Wolf with the Guillotine), countered meals of a lower rarity too.
++    for (let mt = lowMeal(ctx, t, b); mt <= topMeal(ctx, t, b); mt++) {
+       for (const f of (mt !== t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
+         if (!comp[mt * 4 + f]) continue;
+         comp[mt * 4 + f] -= 1;
+@@ -331,6 +391,15 @@
+     return ctx.maul && b === MAMMOTH ? RAINBOW - 1 : t;
+   }
+ 
++  // The lowest meal tier: any under Cage Fight, or for a Wolf with the
++  // Fanged Guillotine; else its own.
++  function lowMeal(ctx, t, b) {
++    return ctx.fight || (ctx.guillotine && b === WOLF) ? 0 : t;
++  }
++
++  // Where a memo key starts: lower tiers matter once some eater can reach them.
++  const keyFrom = (ctx, t) => (ctx.fight || ctx.guillotine ? 0 : t * 4);
++
+   // Expected change in value from a bite: the chosen meal, then the rest of
+   // the chain. `chained` marks a bite inside a chain, after the first.
+   // `comp` leaves out the eater and still holds the meal.
+@@ -347,7 +416,7 @@
+   // The best first meal for an eater of this tier and beast, by expected value.
+   function bestMeal(ctx, tier, beast, comp, crowd) {
+     let best = { value: -Infinity, meal: -1 };
+-    for (let mt = ctx.fight ? 0 : tier; mt <= topMeal(ctx, tier, beast); mt++) {
++    for (let mt = lowMeal(ctx, tier, beast); mt <= topMeal(ctx, tier, beast); mt++) {
+       for (const f of (mt !== tier ? ctx.countersAt(tier) : ctx.eatsAt(tier))[beast]) {
+         if (!comp[mt * 4 + f]) continue;
+         const value = devourDelta(ctx, tier, beast, f, false, comp, crowd, false, mt);
+@@ -386,11 +455,11 @@
+     };
+     const eat = (t, b) => {
+       let key = `${t}${b}`;
+-      for (let i = ctx.fight ? 0 : t * 4; i < 20; i++) key += String.fromCharCode(48 + comp[i]);
++      for (let i = keyFrom(ctx, t); i < 20; i++) key += String.fromCharCode(48 + comp[i]);
+       if (memo.has(key)) return memo.get(key);
+       // The player picks the meal with the best odds (then more bites).
+       let out = null;
+-      for (let mt = ctx.fight ? 0 : t; mt <= topMeal(ctx, t, b); mt++) {
++      for (let mt = lowMeal(ctx, t, b); mt <= topMeal(ctx, t, b); mt++) {
+         for (const f of (mt !== t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
+           if (!comp[mt * 4 + f]) continue;
+           comp[mt * 4 + f] -= 1;
+@@ -675,6 +744,14 @@
+         const shown = c.known && c.hidden ? [0, 1, 2, 3, 4].map((t) => (t === Math.min(4, c.hidden.tier) ? 1 : 0)) : null;
+         const dist = shown || (c.atLeast ? floorDist(ctx.openDist, c.atLeast) : null);
+         score += dist ? freshValue(ctx, tagged(ctx, dist), board.comp, board.crowd + 1, swapLeft) : freshNow();
++        // Kin's Coin: the newcomer may make a pair.
++        if (ctx.coin) score += coinDelta(ctx, board.comp, [], tagged(ctx, dist || ctx.openDist), -1);
++        // Ravenous Chains: a newcomer beside tomorrow's top inmate is gone by
++        // morning (less the eater's chance of a tier for it).
++        if (ctx.ravenous && ctx.ravenous.doom[n]) {
++          const worth = (dist || ctx.openDist).reduce((sum, p, t) => sum + p * ctx.v[t], 0);
++          score -= P.wRav * ctx.ravenous.doom[n] * (P.wOpen * worth - ctx.ravenous.lift);
++        }
+         // Executioner's Blacklist: opening this door leaves 5 or fewer locked,
+         // so 2 random inmates rise a tier.
+         if (ctx.blacklist && ctx.sealed - 1 <= 5) score += 2 * ctx.lift;
+@@ -798,6 +875,69 @@
+     return linkValue(st, ctx, link) * (certain || link.prey === inmate.id ? 1 : 0.75);
+   }
+ 
++  // Ferocious Beast's Ravenous Chains (engine ravenousChains): each morning
++  // the highest-rarity inmate (one at random among equals) removes the
++  // inmates on both sides of it, rising a tier 40% of the time for each.
++  // For each cell, the chance it's beside that eater on today's block, and
++  // what a side's removal is worth to the eater (`lift`).
++  function ravenousDoom(st, P) {
++    const board = st.cells.filter((c) => !c.sealed && c.inmate && c.inmate.tier < RAINBOW);
++    const doom = new Array(T.CELL_COUNT).fill(0);
++    if (!board.length) return { doom, lift: 0 };
++    const top = Math.max(...board.map((c) => c.inmate.tier));
++    const tops = board.filter((c) => c.inmate.tier === top);
++    for (const c of tops) {
++      for (const k of [(c.n + T.CELL_COUNT - 1) % T.CELL_COUNT, (c.n + 1) % T.CELL_COUNT]) doom[k] += 1 / tops.length;
++    }
++    const v = (t) => P.tierBase ** t;
++    const R = P.tierBase ** RAINBOW * P.rainbowMult;
++    const lift = 0.4 * ((top + 1 >= RAINBOW ? R : v(top + 1)) - v(top));
++    return { doom, lift };
++  }
++
++  // Kin's Coin of Fate (engine coinOfFate): each morning, with inmates that
++  // share a beast and rarity, 60% of the time one goes and another like it
++  // rises 2 tiers. What that morning is worth on a block with these counts
++  // (comp: tier * 4 + beast); the one that goes is picked among all matches.
++  function coinPotential(ctx, comp) {
++    let n = 0;
++    let sum = 0;
++    for (let i = 0; i < 20; i++) {
++      const k = comp[i];
++      if (k < 2) continue;
++      const t = Math.floor(i / 4);
++      n += k;
++      sum += k * ((t + 2 >= RAINBOW ? ctx.R : ctx.v[t + 2]) - 2 * ctx.v[t]);
++    }
++    return n ? (0.6 * sum) / n : 0;
++  }
++
++  // The coin's change when `out` leaves the block and a newcomer with tier
++  // odds `dist` (beast kept as `keep`, or any) joins. Indices are tier*4+beast.
++  function coinDelta(ctx, comp, out, dist, keep) {
++    if (!ctx.coin) return 0;
++    const before = coinPotential(ctx, comp);
++    for (const i of out) comp[i] -= 1;
++    let after = 0;
++    if (dist) {
++      const beasts = keep >= 0 ? [keep] : [0, 1, 2, 3];
++      for (let t = 0; t < dist.length; t++) {
++        if (!dist[t]) continue;
++        for (const b of beasts) {
++          if (t >= RAINBOW) {
++            after += (dist[t] / beasts.length) * coinPotential(ctx, comp);
++            continue;
++          }
++          comp[t * 4 + b] += 1;
++          after += (dist[t] / beasts.length) * coinPotential(ctx, comp);
++          comp[t * 4 + b] -= 1;
++        }
++      }
++    } else after = coinPotential(ctx, comp);
++    for (const i of out) comp[i] += 1;
++    return ctx.P.wCoin * (after - before);
++  }
++
+   // Today's devour options for the warden's inmate, valued. Best first.
+   // While a chain waits for a pick, they're the eater's next meals.
+   function devourScores(st, ctx) {
+@@ -819,7 +959,19 @@
+         // Crowded Beastcage: 40% of the time the meal's cell opens again with
+         // someone new (the chain after the first bite isn't counted).
+         const cage = ctx.cage ? ctx.P.wCage * 0.4 * ctx.P.wOpen * ctx.openValue : 0;
+-        return { cell: o.cell, score: devourDelta(ctx, tier, beast, beastIndex(meal.beast), !!o.scratch, comp, crowd, chained, o.scratch ? tier : meal.tier) - loss + stairLoss + cage };
++        // Kin's Coin: the eater and its meal leave their pairs, and the eater
++        // comes back a tier up as any beast (the chain after isn't counted).
++        let coin = 0;
++        if (ctx.coin && tier < RAINBOW) {
++          comp[tier * 4 + beast] += 1;
++          const out = [tier * 4 + beast].concat(o.scratch || meal.tier >= RAINBOW ? [] : [meal.tier * 4 + beastIndex(meal.beast)]);
++          coin = coinDelta(ctx, comp, out, [0, 1, 2, 3, 4, 5].map((t) => (t === Math.min(RAINBOW, tier + 1) ? 1 : 0)), -1);
++          comp[tier * 4 + beast] -= 1;
++        }
++        // Ravenous Chains: a meal beside tomorrow's top inmate would be gone
++        // by morning anyway (less the eater's chance of a tier for it).
++        const rav = ctx.ravenous && !o.scratch && meal.tier < RAINBOW ? ctx.P.wRav * ctx.ravenous.doom[o.cell] * (ctx.v[meal.tier] - ctx.ravenous.lift) : 0;
++        return { cell: o.cell, score: devourDelta(ctx, tier, beast, beastIndex(meal.beast), !!o.scratch, comp, crowd, chained, o.scratch ? tier : meal.tier) - loss + stairLoss + cage + coin + rav };
+       })
+       .sort((a, b) => b.score - a.score);
+   }
+@@ -831,6 +983,13 @@
+     const here = st.cells[st.position];
+     if (!here || here.sealed || !here.inmate || !canSwapNow(st) || ctx.swapCap < 0) return -Infinity;
+     let gain = swapValue(ctx, here.inmate.tier) - linkLoss(st, ctx, here.inmate, true);
++    // Kin's Coin: the old inmate leaves its pair and the newcomer may make
++    // one (the Iron Pestle keeps the beast).
++    if (ctx.coin && here.inmate.tier < RAINBOW) {
++      const { comp } = composition(st, -1);
++      const b = beastIndex(here.inmate.beast);
++      gain += coinDelta(ctx, comp, [here.inmate.tier * 4 + b], swapDist(ctx, here.inmate.tier), ctx.pestle ? b : -1);
++    }
+     if (here.ivory) {
+       const board = st.cells.filter((c) => !c.sealed && c.inmate && c.inmate.tier < RAINBOW);
+       const lift = board.reduce((sum, c) => sum + ctx.v[c.inmate.tier + 1] - ctx.v[c.inmate.tier], 0) / Math.max(1, board.length);
+@@ -905,6 +1064,7 @@
+         value += boardValue(trial, context(trial, P));
+       }
+       value /= samples;
++      value += P[GIFT_BONUS[id]] || 0;
+       if (!best || value > best.value) best = { id, value };
+     }
+     return best ? best.id : options[0];
+@@ -1117,15 +1277,81 @@
+ 
+   // ---------- Monte Carlo solver ----------
+ 
+-  // A copy without the log, which playouts don't need.
++  // A copy without the log, which playouts don't need. Local build: the
++  // rules' params are shared, not copied: play never changes them, and the
++  // same object keeps withDefaults()'s cache warm across playouts.
+   function clone(st) {
+     const log = st.log;
++    const params = st.params;
+     st.log = [];
+-    const copy = JSON.parse(JSON.stringify(st));
++    st.params = null;
++    const copy = stateCopy(st);
+     st.log = log;
++    st.params = params;
++    if (params !== undefined) copy.params = params;
+     return copy;
+   }
+ 
++  // Local build: what JSON.parse(JSON.stringify(v)) gives, without the text
++  // in between: undefined, functions and symbols dropped (null in arrays),
++  // NaN and Infinity as null, keys in the same order.
++  // Local build: the game state's copy for playouts. The state holds only
++  // what JSON keeps (the engine writes no undefined, NaN or Infinity), so a
++  // spread copy of each object, with its objects copied the same way, gives
++  // what plainCopy gives, faster (V8 copies an object's fields in one go).
++  function stateCopy(v) {
++    if (Array.isArray(v)) {
++      const n = v.length;
++      const out = new Array(n);
++      for (let i = 0; i < n; i++) {
++        const x = v[i];
++        out[i] = x !== null && typeof x === 'object' ? stateCopy(x) : x;
++      }
++      return out;
++    }
++    const out = { ...v };
++    const keys = Object.keys(out);
++    for (let i = 0; i < keys.length; i++) {
++      const x = out[keys[i]];
++      if (x !== null && typeof x === 'object') out[keys[i]] = stateCopy(x);
++    }
++    return out;
++  }
++
++  // Plain values are copied in place, without a call each (the copy is
++  // most of a gift pick's time in a playout).
++  function plainValue(x) {
++    if (x === null) return null;
++    const t = typeof x;
++    if (t === 'number') return Number.isFinite(x) ? (x === 0 ? 0 : x) : null;
++    if (t === 'string' || t === 'boolean') return x;
++    return plainCopy(x);
++  }
++  function plainCopy(v) {
++    if (v === null) return null;
++    const t = typeof v;
++    if (t === 'number') return Number.isFinite(v) ? (v === 0 ? 0 : v) : null;
++    if (t === 'string' || t === 'boolean') return v;
++    if (t !== 'object') return undefined;
++    if (typeof v.toJSON === 'function') return JSON.parse(JSON.stringify(v));
++    if (Array.isArray(v)) {
++      const n = v.length;
++      const out = new Array(n);
++      for (let i = 0; i < n; i++) {
++        const x = plainValue(v[i]);
++        out[i] = x === undefined ? null : x;
++      }
++      return out;
++    }
++    const out = {};
++    const keys = Object.keys(v);
++    for (let i = 0; i < keys.length; i++) {
++      const x = plainValue(v[keys[i]]);
++      if (x !== undefined) out[keys[i]] = x;
++    }
++    return out;
++  }
++
+   // Re-rolls everything the player can't see: the game's dice, and any
+   // occupant behind a door that hasn't been fully revealed.
+   function hideFuture(st, seed) {
+@@ -1481,7 +1707,7 @@
+     return null;
+   }
+ 
+-  const api = { DEFAULTS, PROFILES, paramsFor, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
++  const api = { DEFAULTS, PROFILES, paramsFor, boardValue, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
+   if (typeof module === 'object' && module.exports) module.exports = api;
+   root.TartarusSolver = api;
+ })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);
+diff --git a/js/tool-combos.js b/js/tool-combos.js
+index fbe8ad8..e9d0b92 100644
+--- a/js/tool-combos.js
++++ b/js/tool-combos.js
+@@ -1,5 +1,5 @@
+ /* Generated by tools/strategy-sim.js combos: Rainbows per run with each set of instruments held from day 1. Do not edit by hand. */
+ (function (root) {
+-  root.TARTARUS_COMBOS = {"single":{"generated":"2026-10-18","ids":["revenge","muzzle","saw","keys","rope","fire","ironbox","skewer","hook","pestle","scales","tongs","guillotine","axe","shackles","collar","forged","dogtag","cage","blacklist","shortchain","maiden","whip","ravenous","scapegoat","stake","coin","crown","maul","claws","trap"],"base":1.767,"sizes":{"1":{"sets":31,"runs":124000,"margin":0.0634},"2":{"sets":465,"runs":1860000,"margin":0.069}},"v":{"a":2.461,"b":2.467,"c":2.196,"d":1.874,"e":3.223,"f":1.786,"g":1.119,"h":2.318,"i":2.239,"j":1.745,"k":1.839,"l":1.966,"m":2.069,"n":1.574,"o":2.663,"p":2.244,"q":1.349,"r":2.055,"s":1.932,"t":2.204,"u":1.739,"v":2.716,"w":1.916,"x":2.313,"y":2.631,"z":1.985,"{":2.728,"|":3.374,"}":3.534,"~":3.053,"":3.591,"ab":3.236,"ac":2.857,"ad":3.019,"ae":3.789,"af":2.545,"ag":1.66,"ah":3.011,"ai":2.868,"aj":2.388,"ak":2.507,"al":2.493,"am":2.741,"an":2.555,"ao":3.266,"ap":3.047,"aq":2.325,"ar":2.675,"as":2.676,"at":2.55,"au":2.509,"av":3.188,"aw":2.684,"ax":2.72,"ay":2.805,"az":2.534,"a{":3.125,"a|":4.128,"a}":4.064,"a~":4.043,"a":3.452,"bc":2.883,"bd":2.187,"be":4.057,"bf":2.123,"bg":1.306,"bh":3.097,"bi":2.921,"bj":2.443,"bk":2.541,"bl":2.563,"bm":2.855,"bn":2.04,"bo":3.429,"bp":2.807,"bq":1.713,"br":2.72,"bs":2.344,"bt":2.74,"bu":2.228,"bv":3.298,"bw":2.499,"bx":3.076,"by":3.374,"bz":2.405,"b{":3.639,"b|":4.372,"b}":4.431,"b~":4.37,"b":3.776,"cd":2.61,"ce":3.636,"cf":2.279,"cg":1.409,"ch":2.689,"ci":2.667,"cj":2.229,"ck":2.257,"cl":2.364,"cm":2.485,"cn":2.214,"co":3.112,"cp":2.517,"cq":1.934,"cr":2.494,"cs":2.364,"ct":2.34,"cu":2.223,"cv":3.015,"cw":2.283,"cx":2.564,"cy":2.74,"cz":2.392,"c{":3.009,"c|":3.783,"c}":3.82,"c~":3.665,"c":3.613,"de":2.85,"df":1.843,"dg":1.327,"dh":2.762,"di":2.817,"dj":1.874,"dk":1.859,"dl":2.34,"dm":2.392,"dn":1.627,"do":2.653,"dp":2.837,"dq":1.472,"dr":2.098,"ds":2.099,"dt":3.287,"du":1.895,"dv":2.309,"dw":2.421,"dx":3.018,"dy":3.229,"dz":1.872,"d{":3.649,"d|":4.652,"d}":4.376,"d~":3.013,"d":4.42,"ef":2.958,"eg":1.923,"eh":3.816,"ei":3.434,"ej":3.228,"ek":3.221,"el":3.472,"em":3.439,"en":2.543,"eo":4.495,"ep":3.67,"eq":2.437,"er":3.351,"es":3.188,"et":3.377,"eu":3.037,"ev":9.122,"ew":3.267,"ex":3.598,"ey":3.027,"ez":2.925,"e{":4.628,"e|":4.667,"e}":4.976,"e~":4.058,"e":5.015,"fg":1.177,"fh":2.567,"fi":2.357,"fj":1.765,"fk":1.848,"fl":2.076,"fm":2.163,"fn":1.563,"fo":2.607,"fp":2.388,"fq":1.345,"fr":2.134,"fs":1.885,"ft":2.679,"fu":1.767,"fv":2.479,"fw":2.026,"fx":2.539,"fy":2.785,"fz":1.887,"f{":3.204,"f|":3.897,"f}":3.697,"f~":3.009,"f":3.811,"gh":4.497,"gi":1.353,"gj":1.088,"gk":1.151,"gl":1.677,"gm":1.576,"gn":1.198,"go":2.046,"gp":1.453,"gq":0.813,"gr":1.22,"gs":1.196,"gt":1.799,"gu":1.26,"gv":1.814,"gw":1.073,"gx":2.757,"gy":2.592,"gz":1.337,"g{":4.504,"g|":2.066,"g}":1.992,"g~":1.651,"g":2.73,"hi":2.774,"hj":2.261,"hk":2.389,"hl":2.392,"hm":2.519,"hn":2.285,"ho":3.163,"hp":2.706,"hq":2.127,"hr":2.563,"hs":2.483,"ht":2.478,"hu":2.387,"hv":3.117,"hw":2.433,"hx":2.639,"hy":2.808,"hz":2.509,"h{":3.051,"h|":3.848,"h}":3.954,"h~":3.657,"h":3.713,"ij":2.216,"ik":2.289,"il":2.397,"im":2.563,"in":2.15,"io":3.349,"ip":2.659,"iq":2.033,"ir":2.731,"is":2.452,"it":2.554,"iu":2.326,"iv":2.998,"iw":2.338,"ix":2.739,"iy":3.072,"iz":2.237,"i{":3.228,"i|":3.906,"i}":3.929,"i~":4.098,"i":3.983,"jk":1.837,"jl":1.942,"jm":2.066,"jn":1.569,"jo":2.708,"jp":2.244,"jq":1.385,"jr":2.036,"js":1.922,"jt":2.163,"ju":1.771,"jv":2.705,"jw":1.917,"jx":2.288,"jy":2.656,"jz":2.032,"j{":2.733,"j|":3.365,"j}":3.419,"j~":2.939,"j":3.614,"kl":2.024,"km":2.131,"kn":1.567,"ko":2.7,"kp":2.272,"kq":1.319,"kr":2.133,"ks":1.946,"kt":2.257,"ku":1.802,"kv":2.764,"kw":1.939,"kx":2.326,"ky":2.765,"kz":2.05,"k{":2.794,"k|":3.512,"k}":3.576,"k~":3.03,"k":3.608,"lm":2.297,"ln":2.154,"lo":3.051,"lp":2.305,"lq":1.771,"lr":2.241,"ls":2.117,"lt":2.325,"lu":2.017,"lv":3.389,"lw":2.094,"lx":2.447,"ly":2.748,"lz":2.443,"l{":2.862,"l|":3.424,"l}":3.55,"l~":3.236,"l":3.813,"mn":1.978,"mo":2.981,"mp":2.534,"mq":1.757,"mr":2.36,"ms":2.296,"mt":2.42,"mu":2.09,"mv":2.969,"mw":2.207,"mx":2.514,"my":2.716,"mz":2.311,"m{":2.94,"m|":3.655,"m}":3.666,"m~":3.387,"m":3.722,"no":2.381,"np":2.368,"nq":1.178,"nr":1.825,"ns":1.741,"nt":2.678,"nu":1.545,"nv":2.376,"nw":2.021,"nx":2.435,"ny":2.433,"nz":1.702,"n{":2.991,"n|":3.74,"n}":3.608,"n~":2.682,"n":3.797,"op":3.08,"oq":2.053,"or":3.034,"os":2.762,"ot":2.913,"ou":2.645,"ov":3.631,"ow":2.682,"ox":3.188,"oy":3.498,"oz":2.935,"o{":3.628,"o|":4.28,"o}":4.345,"o~":4.083,"o":4.247,"pq":2.103,"pr":2.499,"ps":2.507,"pt":2.443,"pu":2.341,"pv":3.018,"pw":2.247,"px":2.552,"py":2.704,"pz":2.304,"p{":3.063,"p|":3.735,"p}":3.725,"p~":3.631,"p":3.526,"qr":1.575,"qs":1.524,"qt":2.271,"qu":1.381,"qv":2.021,"qw":1.397,"qx":2.207,"qy":2.354,"qz":1.184,"q{":2.814,"q|":3.619,"q}":3.574,"q~":2.614,"q":3.492,"rs":2.135,"rt":2.442,"ru":1.985,"rv":2.913,"rw":2.165,"rx":2.539,"ry":2.872,"rz":2.126,"r{":3.055,"r|":3.713,"r}":3.758,"r~":3.279,"r":3.866,"st":2.474,"su":1.931,"sv":2.747,"sw":2.101,"sx":2.416,"sy":2.703,"sz":1.976,"s{":2.978,"s|":3.797,"s}":3.795,"s~":3.224,"s":3.697,"tu":2.416,"tv":3.015,"tw":2.102,"tx":2.405,"ty":2.64,"tz":2.493,"t{":2.778,"t|":3.468,"t}":3.601,"t~":3.311,"t":4.003,"uv":2.545,"uw":2.028,"ux":2.421,"uy":2.723,"uz":1.893,"u{":2.921,"u|":3.62,"u}":3.673,"u~":2.92,"u":3.711,"vw":2.75,"vx":3.353,"vy":6.093,"vz":4.162,"v{":3.465,"v|":4.008,"v}":4.288,"v~":3.681,"v":3.852,"wx":2.252,"wy":2.337,"wz":1.762,"w{":2.758,"w|":3.549,"w}":3.55,"w~":3.592,"w":3.099,"xy":2.793,"xz":2.538,"x{":2.867,"x|":3.583,"x}":3.72,"x~":3.505,"x":3.477,"yz":2.275,"y{":2.88,"y|":3.378,"y}":3.665,"y~":3.792,"y":3.253,"z{":3.553,"z|":3.414,"z}":4.047,"z~":3.06,"z":3.702,"{|":4.002,"{}":4.106,"{~":3.937,"{":4.101,"|}":4.501,"|~":4.695,"|":4.556,"}~":4.718,"}":4.435,"~":4.637}}};
++  root.TARTARUS_COMBOS = {"single":{"generated":"2026-10-18","ids":["revenge","muzzle","saw","keys","rope","fire","ironbox","skewer","hook","pestle","scales","tongs","guillotine","axe","shackles","collar","forged","dogtag","cage","blacklist","shortchain","maiden","whip","ravenous","scapegoat","stake","coin","crown","maul","claws","trap"],"base":1.767,"sizes":{"1":{"sets":31,"runs":124000,"margin":0.0634},"2":{"sets":465,"runs":1860000,"margin":0.069}},"v":{"a":2.461,"b":2.467,"c":2.196,"d":1.874,"e":3.223,"f":1.786,"g":1.119,"h":2.318,"i":2.239,"j":1.745,"k":1.839,"l":1.966,"m":2.115,"n":1.574,"o":2.663,"p":2.244,"q":1.349,"r":2.055,"s":1.932,"t":2.204,"u":1.739,"v":2.716,"w":1.916,"x":2.44,"y":2.631,"z":1.985,"{":2.786,"|":3.374,"}":3.534,"~":3.053,"":3.591,"ab":3.236,"ac":2.857,"ad":3.019,"ae":3.789,"af":2.545,"ag":1.66,"ah":3.011,"ai":2.868,"aj":2.388,"ak":2.507,"al":2.493,"am":2.746,"an":2.555,"ao":3.266,"ap":3.047,"aq":2.325,"ar":2.675,"as":2.676,"at":2.55,"au":2.509,"av":3.188,"aw":2.684,"ax":2.809,"ay":2.805,"az":2.534,"a{":3.111,"a|":4.128,"a}":4.064,"a~":4.043,"a":3.452,"bc":2.883,"bd":2.187,"be":4.057,"bf":2.123,"bg":1.306,"bh":3.097,"bi":2.921,"bj":2.443,"bk":2.541,"bl":2.563,"bm":2.92,"bn":2.04,"bo":3.429,"bp":2.807,"bq":1.713,"br":2.72,"bs":2.344,"bt":2.74,"bu":2.228,"bv":3.298,"bw":2.499,"bx":3.283,"by":3.374,"bz":2.405,"b{":3.643,"b|":4.372,"b}":4.431,"b~":4.37,"b":3.776,"cd":2.61,"ce":3.636,"cf":2.279,"cg":1.409,"ch":2.689,"ci":2.667,"cj":2.229,"ck":2.257,"cl":2.364,"cm":2.489,"cn":2.214,"co":3.112,"cp":2.517,"cq":1.934,"cr":2.494,"cs":2.364,"ct":2.34,"cu":2.223,"cv":3.015,"cw":2.283,"cx":2.657,"cy":2.74,"cz":2.392,"c{":3.006,"c|":3.783,"c}":3.82,"c~":3.665,"c":3.613,"de":2.85,"df":1.843,"dg":1.327,"dh":2.762,"di":2.817,"dj":1.874,"dk":1.859,"dl":2.34,"dm":2.386,"dn":1.627,"do":2.653,"dp":2.837,"dq":1.472,"dr":2.098,"ds":2.099,"dt":3.287,"du":1.895,"dv":2.309,"dw":2.421,"dx":3.142,"dy":3.229,"dz":1.872,"d{":3.705,"d|":4.652,"d}":4.376,"d~":3.013,"d":4.42,"ef":2.958,"eg":1.923,"eh":3.816,"ei":3.434,"ej":3.228,"ek":3.221,"el":3.472,"em":3.467,"en":2.543,"eo":4.495,"ep":3.67,"eq":2.437,"er":3.351,"es":3.188,"et":3.377,"eu":3.037,"ev":9.122,"ew":3.267,"ex":3.675,"ey":3.027,"ez":2.925,"e{":4.679,"e|":4.667,"e}":4.976,"e~":4.058,"e":5.015,"fg":1.177,"fh":2.567,"fi":2.357,"fj":1.765,"fk":1.848,"fl":2.076,"fm":2.157,"fn":1.563,"fo":2.607,"fp":2.388,"fq":1.345,"fr":2.134,"fs":1.885,"ft":2.679,"fu":1.767,"fv":2.479,"fw":2.026,"fx":2.631,"fy":2.785,"fz":1.887,"f{":3.324,"f|":3.897,"f}":3.697,"f~":3.009,"f":3.811,"gh":4.497,"gi":1.353,"gj":1.088,"gk":1.151,"gl":1.677,"gm":1.564,"gn":1.198,"go":2.046,"gp":1.453,"gq":0.813,"gr":1.22,"gs":1.196,"gt":1.799,"gu":1.26,"gv":1.814,"gw":1.073,"gx":2.773,"gy":2.592,"gz":1.337,"g{":4.498,"g|":2.066,"g}":1.992,"g~":1.651,"g":2.73,"hi":2.774,"hj":2.261,"hk":2.389,"hl":2.392,"hm":2.538,"hn":2.285,"ho":3.163,"hp":2.706,"hq":2.127,"hr":2.563,"hs":2.483,"ht":2.478,"hu":2.387,"hv":3.117,"hw":2.433,"hx":2.749,"hy":2.808,"hz":2.509,"h{":3.099,"h|":3.848,"h}":3.954,"h~":3.657,"h":3.713,"ij":2.216,"ik":2.289,"il":2.397,"im":2.598,"in":2.15,"io":3.349,"ip":2.659,"iq":2.033,"ir":2.731,"is":2.452,"it":2.554,"iu":2.326,"iv":2.998,"iw":2.338,"ix":2.834,"iy":3.072,"iz":2.237,"i{":3.316,"i|":3.906,"i}":3.929,"i~":4.098,"i":3.983,"jk":1.837,"jl":1.942,"jm":2.079,"jn":1.569,"jo":2.708,"jp":2.244,"jq":1.385,"jr":2.036,"js":1.922,"jt":2.163,"ju":1.771,"jv":2.705,"jw":1.917,"jx":2.425,"jy":2.656,"jz":2.032,"j{":2.848,"j|":3.365,"j}":3.419,"j~":2.939,"j":3.614,"kl":2.024,"km":2.18,"kn":1.567,"ko":2.7,"kp":2.272,"kq":1.319,"kr":2.133,"ks":1.946,"kt":2.257,"ku":1.802,"kv":2.764,"kw":1.939,"kx":2.485,"ky":2.765,"kz":2.05,"k{":2.816,"k|":3.512,"k}":3.576,"k~":3.03,"k":3.608,"lm":2.316,"ln":2.154,"lo":3.051,"lp":2.305,"lq":1.771,"lr":2.241,"ls":2.117,"lt":2.325,"lu":2.017,"lv":3.389,"lw":2.094,"lx":2.526,"ly":2.748,"lz":2.443,"l{":2.88,"l|":3.424,"l}":3.55,"l~":3.236,"l":3.813,"mn":2.139,"mo":3.03,"mp":2.521,"mq":1.808,"mr":2.37,"ms":2.288,"mt":2.359,"mu":2.117,"mv":3.067,"mw":2.254,"mx":2.675,"my":2.724,"mz":2.342,"m{":2.969,"m|":3.672,"m}":3.639,"m~":3.457,"m":3.625,"no":2.381,"np":2.368,"nq":1.178,"nr":1.825,"ns":1.741,"nt":2.678,"nu":1.545,"nv":2.376,"nw":2.021,"nx":2.579,"ny":2.433,"nz":1.702,"n{":3.094,"n|":3.74,"n}":3.608,"n~":2.682,"n":3.797,"op":3.08,"oq":2.053,"or":3.034,"os":2.762,"ot":2.913,"ou":2.645,"ov":3.631,"ow":2.682,"ox":3.19,"oy":3.498,"oz":2.935,"o{":3.61,"o|":4.28,"o}":4.345,"o~":4.083,"o":4.247,"pq":2.103,"pr":2.499,"ps":2.507,"pt":2.443,"pu":2.341,"pv":3.018,"pw":2.247,"px":2.683,"py":2.704,"pz":2.304,"p{":3.098,"p|":3.735,"p}":3.725,"p~":3.631,"p":3.526,"qr":1.575,"qs":1.524,"qt":2.271,"qu":1.381,"qv":2.021,"qw":1.397,"qx":2.279,"qy":2.354,"qz":1.184,"q{":2.874,"q|":3.619,"q}":3.574,"q~":2.614,"q":3.492,"rs":2.135,"rt":2.442,"ru":1.985,"rv":2.913,"rw":2.165,"rx":2.715,"ry":2.872,"rz":2.126,"r{":3.118,"r|":3.713,"r}":3.758,"r~":3.279,"r":3.866,"st":2.474,"su":1.931,"sv":2.747,"sw":2.101,"sx":2.542,"sy":2.703,"sz":1.976,"s{":2.981,"s|":3.797,"s}":3.795,"s~":3.224,"s":3.697,"tu":2.416,"tv":3.015,"tw":2.102,"tx":2.51,"ty":2.64,"tz":2.493,"t{":2.863,"t|":3.468,"t}":3.601,"t~":3.311,"t":4.003,"uv":2.545,"uw":2.028,"ux":2.544,"uy":2.723,"uz":1.893,"u{":2.985,"u|":3.62,"u}":3.673,"u~":2.92,"u":3.711,"vw":2.75,"vx":3.654,"vy":6.093,"vz":4.162,"v{":3.557,"v|":4.008,"v}":4.288,"v~":3.681,"v":3.852,"wx":2.313,"wy":2.337,"wz":1.762,"w{":2.755,"w|":3.549,"w}":3.55,"w~":3.592,"w":3.099,"xy":2.857,"xz":2.619,"x{":2.984,"x|":3.631,"x}":3.764,"x~":3.616,"x":3.507,"yz":2.275,"y{":2.234,"y|":3.378,"y}":3.665,"y~":3.792,"y":3.253,"z{":3.7,"z|":3.414,"z}":4.047,"z~":3.06,"z":3.702,"{|":4.034,"{}":4.168,"{~":3.925,"{":4.082,"|}":4.501,"|~":4.695,"|":4.556,"}~":4.718,"}":4.435,"~":4.637}}};
+   if (typeof module === 'object' && module.exports) module.exports = root.TARTARUS_COMBOS;
+ })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);

@@ -1,0 +1,13 @@
+{
+  "version": "0acd7db7d2",
+  "base": "12b85db88cc8a3ba9c63a7d52be7b9ddb0c888fd",
+  "exe": 1,
+  "exeHash": "29013c13e3",
+  "files": [
+    "js/analyze.js",
+    "js/capture.js",
+    "js/solver.js",
+    "js/tool-combos.js"
+  ],
+  "at": "2026-10-20T02:20:11.153Z"
+}
