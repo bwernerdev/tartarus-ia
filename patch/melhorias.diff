@@ -500,7 +500,7 @@ index 71f9b93..e6b6644 100644
        self.postMessage({ id, kind, result: self.TartarusScan.readObjectiveTitle(img) });
        return;
 diff --git a/js/scan.js b/js/scan.js
-index 7d44f04..318c24a 100644
+index e6894fd..0c9d640 100644
 --- a/js/scan.js
 +++ b/js/scan.js
 @@ -263,6 +263,18 @@
@@ -522,7 +522,7 @@ index 7d44f04..318c24a 100644
      }
      while (levels[levels.length - 1].w > 120 && levels[levels.length - 1].h > 60) {
        const l = levels[levels.length - 1];
-@@ -319,7 +331,8 @@
+@@ -323,7 +335,8 @@
      for (let s = sMin; s <= sMax; s *= 1.05) scales.push(s);
      for (let s = sMin / 1.05; s >= sLow; s /= 1.05) scales.push(s);
      const top = [];
@@ -532,7 +532,7 @@ index 7d44f04..318c24a 100644
        // The coarsest level that still shows the frame's detail.
        let L = 0;
        while (L + 1 < levels.length && s / levels[L + 1].f >= 0.2) L += 1;
-@@ -2068,8 +2081,15 @@
+@@ -2076,8 +2089,15 @@
      const gray = grayOf(img);
      const sharp = blur(gray, img.width, img.height, 1);
      const cache = opts && opts.cache;
