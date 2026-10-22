@@ -280,7 +280,7 @@ index a6c9f4e..81f5f21 100644
        toast,
      };
 diff --git a/js/capture.js b/js/capture.js
-index 730c0b3..f7056de 100644
+index 730c0b3..99bab44 100644
 --- a/js/capture.js
 +++ b/js/capture.js
 @@ -18,7 +18,7 @@
@@ -314,7 +314,7 @@ index 730c0b3..f7056de 100644
 +  // over before the line came: 2026-10-20's stats, a third of the pictures
 +  // left to the usual time) goes after `still` alike frames in a row
 +  // (about half a second); the usual-time picture still checks it.
-+  const STILL = { from: 250, every: window.TARTARUS_LITE ? 200 : 120, need: 2, still: 4, diff: 1.2, w: 64, h: 36 };
++  const STILL = { from: 250, every: window.TARTARUS_LITE ? 200 : 120, need: 2, still: 4, diff: 2.5, w: 64, h: 36 };
 +  let sketchCanvas = null;
 +  function sketch(frame) {
 +    if (!sketchCanvas) {
