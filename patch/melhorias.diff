@@ -280,7 +280,7 @@ index a6c9f4e..81f5f21 100644
        toast,
      };
 diff --git a/js/capture.js b/js/capture.js
-index 730c0b3..5cf71bf 100644
+index 730c0b3..f7056de 100644
 --- a/js/capture.js
 +++ b/js/capture.js
 @@ -18,7 +18,7 @@
@@ -292,7 +292,7 @@ index 730c0b3..5cf71bf 100644
    const IDB = 'tartarus-sim-capture';
    const listeners = { status: [], hit: [], seen: [], frame: [] };
    // detail: whether the game writes the detail lines the triggers come from
-@@ -305,6 +305,115 @@
+@@ -305,6 +305,117 @@
      if (burst.hits.length < 40) burst.hits.push({ kind: hit.kind, at: hit.at, text: hit.text });
      clearTimeout(burst.timer);
      burst.timer = setTimeout(fire, burst.settle);
@@ -307,7 +307,9 @@ index 730c0b3..5cf71bf 100644
 +  // screen changed since, so the last board read is never an earlier one
 +  // than before. Off with localStorage 'tartarus-local:early-picture' = '0'.
 +  // The last 40 tries are kept in 'tartarus-local:early-stats', for tuning.
-+  // Lite (window.TARTARUS_LITE): a frame every 200 ms instead of 120.
++  // Lite (window.TARTARUS_LITE): a frame every 200 ms instead of 120. diff 2.5:
++  // the game's idle animation moves frames by 1.2 (90% under 2.9; a move by 80+),
++  // so at 1.2 only 65% of boards came early (local/diagnostico.js, 2026-10-22).
 +  // still: a screen that hasn't moved since the log line (its animation was
 +  // over before the line came: 2026-10-20's stats, a third of the pictures
 +  // left to the usual time) goes after `still` alike frames in a row
@@ -408,7 +410,7 @@ index 730c0b3..5cf71bf 100644
    }
  
    async function fire() {
-@@ -312,6 +421,20 @@
+@@ -312,6 +423,20 @@
      burst = null;
      if (!b) return;
      const frame = await grab();
