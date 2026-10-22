@@ -581,7 +581,7 @@ index e6894fd..0c9d640 100644
      // instrument picks, popups and other screens stay near 0.5 or under. A
      // darkened board (a devour's meal pick) also matches weakly, but its
 diff --git a/js/solver.js b/js/solver.js
-index d80a8cf..4882f2b 100644
+index d80a8cf..3546e23 100644
 --- a/js/solver.js
 +++ b/js/solver.js
 @@ -18,6 +18,7 @@
@@ -638,7 +638,7 @@ index d80a8cf..4882f2b 100644
 +  // Local build: weights for each run contract (Cage Fight, Iron Law,
 +  // Tyranny, Opulence), trained by strategy-sim.js train-contracts and
 +  // applied the same way, over the instrument's profile when there's one.
-+  const CONTRACT_PROFILES = {"opulence":{"gRing":4,"gHorn":-4,"gWine":-8,"gBrand":8,"giftChain":true,"tierBase":2.75,"wOpen":1.406,"wNow":1.319,"wWalk":0.879,"wStep":1,"wNest":0,"wChain":13.5,"wUsurp":0.375,"wCrow":4,"wShort":0,"wCage":5.063,"wStair":0.032,"swapMargin":-2,"execMargin":10},"tyranny":{"tierBase":2.75,"rainbowMult":0.844,"wOpen":1.406,"wNow":0.989,"wStep":2,"wNest":0,"wChain":3.375,"wUsurp":1,"wInstigate":0.25,"wCrow":4,"wShort":0.25,"wCage":1.266,"wStair":0.024,"minDevour":-1,"stopMargin":0,"swapMargin":1,"maidenSwapTier":4,"execMargin":10,"acceptChain":false,"giftChain":false,"gRing":-18,"gHorn":-10,"gWine":2,"gBrand":-8},"cagefight":{"tierBase":1.75,"rainbowMult":2.532,"wOpen":0.989,"wNow":1.236,"wWalk":0.879,"wChain":10.125,"wUsurp":0.75,"wCrow":1,"wShort":0.25,"wCage":0.141,"wStair":0.423,"stopMargin":1,"swapMaxTier":4,"swapMargin":-2,"execMargin":5,"giftChain":false,"gRing":14,"gHorn":-12,"gWine":0,"gBrand":-8},"ironlaw":{"wNow":0.791,"wWalk":0.659,"wChain":13.5,"wUsurp":2.25,"wCrow":1,"wShort":0.25,"wCage":0.281,"wStair":0.047,"minDevour":0,"stopMargin":0,"swapMaxTier":4,"swapMargin":-1,"giftChain":false,"gRing":2,"gHorn":-18,"gWine":4,"gBrand":4}};
++  const CONTRACT_PROFILES = {"opulence":{"gRing":4,"gHorn":-4,"gWine":-8,"gBrand":8,"giftChain":true,"tierBase":2.75,"wOpen":1.406,"wNow":1.319,"wWalk":0.879,"wStep":1,"wNest":0,"wChain":13.5,"wUsurp":0.375,"wCrow":4,"wShort":0,"wCage":5.063,"wStair":0.032,"swapMargin":-2,"execMargin":10},"tyranny":{"tierBase":2.75,"rainbowMult":0.844,"wOpen":1.406,"wNow":0.989,"wStep":2,"wNest":0,"wChain":3.375,"wUsurp":1,"wInstigate":0.25,"wCrow":4,"wShort":0.25,"wCage":1.266,"wStair":0.024,"minDevour":-1,"stopMargin":0,"swapMargin":1,"maidenSwapTier":4,"execMargin":10,"acceptChain":false,"giftChain":false,"gRing":-18,"gHorn":-10,"gWine":2,"gBrand":-8},"cagefight":{"tierBase":1.5,"rainbowMult":2.532,"wOpen":1.545,"wNow":0.927,"wWalk":0.879,"wStep":0,"wChain":5.063,"wCrow":1,"wShort":0.25,"wCage":0.211,"wStair":0.951,"minDevour":0,"stopMargin":1,"swapMaxTier":4,"swapMargin":-1,"execMargin":10,"giftChain":false,"gRing":10,"gHorn":-4,"gWine":6,"gBrand":-8},"ironlaw":{"wNow":0.791,"wWalk":0.659,"wChain":13.5,"wUsurp":2.25,"wCrow":1,"wShort":0.25,"wCage":0.281,"wStair":0.047,"minDevour":0,"stopMargin":0,"swapMaxTier":4,"swapMargin":-1,"giftChain":false,"gRing":2,"gHorn":-18,"gWine":4,"gBrand":4}};
 +  const toolProfileCache = new Map();
 +  const paramsFor = (st) => {
 +    let id = '';
