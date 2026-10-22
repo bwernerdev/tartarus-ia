@@ -581,7 +581,7 @@ index e6894fd..0c9d640 100644
      // instrument picks, popups and other screens stay near 0.5 or under. A
      // darkened board (a devour's meal pick) also matches weakly, but its
 diff --git a/js/solver.js b/js/solver.js
-index d80a8cf..2c41f3a 100644
+index d80a8cf..ebfb632 100644
 --- a/js/solver.js
 +++ b/js/solver.js
 @@ -18,6 +18,7 @@
@@ -618,7 +618,7 @@ index d80a8cf..2c41f3a 100644
  
    // Tuned weights for each kind of run: drills with tool rewards on or off.
    // The solver picks by the run's settings. From
-@@ -76,12 +88,44 @@
+@@ -76,12 +88,51 @@
    // day 1: +0.066 ±0.031 Rainbows a run on fresh seeds. wForged and wFire
    // measured no gain and stay 0.
    const PROFILES = {
@@ -639,6 +639,12 @@ index d80a8cf..2c41f3a 100644
 +  // Tyranny, Opulence), trained by strategy-sim.js train-contracts and
 +  // applied the same way, over the instrument's profile when there's one.
 +  const CONTRACT_PROFILES = {"opulence":{"gRing":4,"gHorn":-4,"gWine":-8,"gBrand":8,"giftChain":true,"tierBase":2.75,"wOpen":1.406,"wNow":1.319,"wWalk":0.879,"wStep":1,"wNest":0,"wChain":13.5,"wUsurp":0.375,"wCrow":4,"wShort":0,"wCage":5.063,"wStair":0.032,"swapMargin":-2,"execMargin":10},"tyranny":{"tierBase":2.75,"rainbowMult":0.844,"wOpen":1.406,"wNow":0.989,"wStep":2,"wNest":0,"wChain":3.375,"wUsurp":1,"wInstigate":0.25,"wCrow":4,"wShort":0.25,"wCage":1.266,"wStair":0.024,"minDevour":-1,"stopMargin":0,"swapMargin":1,"maidenSwapTier":4,"execMargin":10,"acceptChain":false,"giftChain":false,"gRing":-18,"gHorn":-10,"gWine":2,"gBrand":-8},"cagefight":{"tierBase":1.5,"rainbowMult":2.532,"wOpen":1.545,"wNow":0.927,"wWalk":0.879,"wStep":0,"wChain":5.063,"wCrow":1,"wShort":0.25,"wCage":0.211,"wStair":0.951,"minDevour":0,"stopMargin":1,"swapMaxTier":4,"swapMargin":-1,"execMargin":10,"giftChain":false,"gRing":10,"gHorn":-4,"gWine":6,"gBrand":-8},"ironlaw":{"wNow":0.791,"wWalk":0.659,"wChain":13.5,"wUsurp":2.25,"wCrow":1,"wShort":0.25,"wCage":0.281,"wStair":0.047,"minDevour":0,"stopMargin":0,"swapMaxTier":4,"swapMargin":-1,"giftChain":false,"gRing":2,"gHorn":-18,"gWine":4,"gBrand":4}};
++  // Local build: weights for a run's last LATE_DAYS days (days 17 to 20 of
++  // 20), over every other profile: near the end, what pays later (a prey
++  // mark, an opened door) pays less. Trained by strategy-sim.js train-late.
++  const LATE_DAYS = 4;
++  const LATE_PROFILE = {};
++  const lateFor = (st) => !!st.params.rewards && Object.keys(LATE_PROFILE).length > 0 && (st.maxDays || T.DEFAULT_PARAMS.drillDays) - st.day < LATE_DAYS;
 +  const toolProfileCache = new Map();
 +  const paramsFor = (st) => {
 +    let id = '';
@@ -646,9 +652,10 @@ index d80a8cf..2c41f3a 100644
 +    const contract = st.params.rewards && st.startEvent && CONTRACT_PROFILES[st.startEvent] ? st.startEvent : '';
 +    // A contract with an instrument held ("cagefight+trap"), over both.
 +    const combo = st.params.rewards && st.startEvent && st.tools ? st.tools.map((t) => `${st.startEvent}+${t}`).find((k) => CONTRACT_PROFILES[k]) || '' : '';
-+    if (!id && !contract && !combo) return PROFILES[st.params.rewards ? 'rewards' : 'notools'];
-+    const key = `${id}|${contract}|${combo}`;
-+    if (!toolProfileCache.has(key)) toolProfileCache.set(key, Object.assign({}, PROFILES.rewards, id ? TOOL_PROFILES[id] : {}, contract ? CONTRACT_PROFILES[contract] : {}, combo ? CONTRACT_PROFILES[combo] : {}));
++    const late = lateFor(st);
++    if (!id && !contract && !combo && !late) return PROFILES[st.params.rewards ? 'rewards' : 'notools'];
++    const key = `${id}|${contract}|${combo}|${late ? 'late' : ''}`;
++    if (!toolProfileCache.has(key)) toolProfileCache.set(key, Object.assign({}, PROFILES.rewards, id ? TOOL_PROFILES[id] : {}, contract ? CONTRACT_PROFILES[contract] : {}, combo ? CONTRACT_PROFILES[combo] : {}, late ? LATE_PROFILE : {}));
 +    return toolProfileCache.get(key);
    };
 -  const paramsFor = (st) => PROFILES[st.params.rewards ? 'rewards' : 'notools'];
@@ -667,7 +674,7 @@ index d80a8cf..2c41f3a 100644
  
    // Measured Rainbows per run for sets of up to 4 instruments held from day
    // 1 (js/tool-combos.js, from the lab's combos mode). Without it, the
-@@ -140,28 +184,40 @@
+@@ -140,28 +191,40 @@
    // ---------- Chain math ----------
  
    // Everything a decision needs, computed once per position.
@@ -717,7 +724,7 @@ index d80a8cf..2c41f3a 100644
      // Under Cage Fight, both meals at every rarity.
      const doubleFrom = T.cageFight && T.cageFight(st) ? 0 : Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? T.DEFAULT_PARAMS.doubleEatTier : RAINBOW;
      const v = [0, 1, 2, 3, 4, 5].map((t) => P.tierBase ** t);
-@@ -201,6 +257,12 @@
+@@ -201,6 +264,12 @@
        crown,
        maul,
        collar: has(st, 'collar'),
@@ -730,7 +737,7 @@ index d80a8cf..2c41f3a 100644
        revenge: has(st, 'revenge') && sealed > 0,
        axeDoors: has(st, 'axe') ? Math.min(2, sealed) : 0,
        dogtag: has(st, 'dogtag'),
-@@ -296,12 +358,12 @@
+@@ -296,12 +365,12 @@
    // stops when no meal is worth eating (stopMargin).
    function feed(ctx, t, b, comp, crowd) {
      let key = `${t}${b}${ctx.muzzle ? `m${crowd}` : ''}`;
@@ -746,7 +753,7 @@ index d80a8cf..2c41f3a 100644
        for (const f of (mt !== t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
          if (!comp[mt * 4 + f]) continue;
          comp[mt * 4 + f] -= 1;
-@@ -337,6 +399,15 @@
+@@ -337,6 +406,15 @@
      return ctx.maul && b === MAMMOTH ? RAINBOW - 1 : t;
    }
  
@@ -762,7 +769,7 @@ index d80a8cf..2c41f3a 100644
    // Expected change in value from a bite: the chosen meal, then the rest of
    // the chain. `chained` marks a bite inside a chain, after the first.
    // `comp` leaves out the eater and still holds the meal.
-@@ -353,7 +424,7 @@
+@@ -353,7 +431,7 @@
    // The best first meal for an eater of this tier and beast, by expected value.
    function bestMeal(ctx, tier, beast, comp, crowd) {
      let best = { value: -Infinity, meal: -1 };
@@ -771,7 +778,7 @@ index d80a8cf..2c41f3a 100644
        for (const f of (mt !== tier ? ctx.countersAt(tier) : ctx.eatsAt(tier))[beast]) {
          if (!comp[mt * 4 + f]) continue;
          const value = devourDelta(ctx, tier, beast, f, false, comp, crowd, false, mt);
-@@ -392,11 +463,11 @@
+@@ -392,11 +470,11 @@
      };
      const eat = (t, b) => {
        let key = `${t}${b}`;
@@ -785,7 +792,7 @@ index d80a8cf..2c41f3a 100644
          for (const f of (mt !== t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
            if (!comp[mt * 4 + f]) continue;
            comp[mt * 4 + f] -= 1;
-@@ -681,6 +752,14 @@
+@@ -681,6 +759,14 @@
          const shown = c.known && c.hidden ? [0, 1, 2, 3, 4].map((t) => (t === Math.min(4, c.hidden.tier) ? 1 : 0)) : null;
          const dist = shown || (c.atLeast ? floorDist(ctx.openDist, c.atLeast) : null);
          score += dist ? freshValue(ctx, tagged(ctx, dist), board.comp, board.crowd + 1, swapLeft) : freshNow();
@@ -800,7 +807,7 @@ index d80a8cf..2c41f3a 100644
          // Executioner's Blacklist: opening this door leaves 5 or fewer locked,
          // so 2 random inmates rise a tier.
          if (ctx.blacklist && ctx.sealed - 1 <= 5) score += 2 * ctx.lift;
-@@ -808,6 +887,69 @@
+@@ -808,6 +894,69 @@
      return linkValue(st, ctx, link) * (certain || link.prey === inmate.id ? 1 : 0.75);
    }
  
@@ -870,7 +877,7 @@ index d80a8cf..2c41f3a 100644
    // Today's devour options for the warden's inmate, valued. Best first.
    // While a chain waits for a pick, they're the eater's next meals.
    function devourScores(st, ctx) {
-@@ -829,7 +971,19 @@
+@@ -829,7 +978,19 @@
          // Crowded Beastcage: 40% of the time the meal's cell opens again with
          // someone new (the chain after the first bite isn't counted).
          const cage = ctx.cage ? ctx.P.wCage * 0.4 * ctx.P.wOpen * ctx.openValue : 0;
@@ -891,7 +898,7 @@ index d80a8cf..2c41f3a 100644
        })
        .sort((a, b) => b.score - a.score);
    }
-@@ -841,6 +995,13 @@
+@@ -841,6 +1002,13 @@
      const here = st.cells[st.position];
      if (!here || here.sealed || !here.inmate || !canSwapNow(st) || ctx.swapCap < 0) return -Infinity;
      let gain = swapValue(ctx, here.inmate.tier) - linkLoss(st, ctx, here.inmate, true);
@@ -905,7 +912,7 @@ index d80a8cf..2c41f3a 100644
      if (here.ivory) {
        const board = st.cells.filter((c) => !c.sealed && c.inmate && c.inmate.tier < RAINBOW);
        const lift = board.reduce((sum, c) => sum + ctx.v[c.inmate.tier + 1] - ctx.v[c.inmate.tier], 0) / Math.max(1, board.length);
-@@ -915,6 +1076,7 @@
+@@ -915,6 +1083,7 @@
          value += boardValue(trial, context(trial, P));
        }
        value /= samples;
@@ -913,7 +920,7 @@ index d80a8cf..2c41f3a 100644
        if (!best || value > best.value) best = { id, value };
      }
      return best ? best.id : options[0];
-@@ -1137,15 +1299,81 @@
+@@ -1137,15 +1306,81 @@
  
    // ---------- Monte Carlo solver ----------
  
@@ -997,12 +1004,12 @@ index d80a8cf..2c41f3a 100644
    // Re-rolls everything the player can't see: the game's dice, and any
    // occupant behind a door that hasn't been fully revealed.
    function hideFuture(st, seed) {
-@@ -1501,7 +1729,7 @@
+@@ -1501,7 +1736,7 @@
      return null;
    }
  
 -  const api = { DEFAULTS, PROFILES, paramsFor, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
-+  const api = { DEFAULTS, PROFILES, paramsFor, boardValue, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
++  const api = { DEFAULTS, PROFILES, LATE_DAYS, paramsFor, boardValue, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
    if (typeof module === 'object' && module.exports) module.exports = api;
    root.TartarusSolver = api;
  })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);
