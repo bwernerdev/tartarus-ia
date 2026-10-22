@@ -1,8 +1,8 @@
 diff --git a/js/analyze.js b/js/analyze.js
-index a6c9f4e..c3f684a 100644
+index b775e13..b1d2922 100644
 --- a/js/analyze.js
 +++ b/js/analyze.js
-@@ -44,15 +44,32 @@
+@@ -59,15 +59,32 @@
      // Without storage, screenshots stay hidden.
    }
    const SAVE_KEY = 'tartarus-sim:save:v2';
@@ -38,7 +38,7 @@ index a6c9f4e..c3f684a 100644
    const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'ratway', 'choice'];
    const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick, or Cancel', event: 'A special event', ratway: 'Sewer Ratway: any cell', choice: 'A tool or gift' };
    const BEAST_KEYS = { m: 'mammoth', l: 'lion', w: 'wolf', r: 'rat' };
-@@ -480,16 +497,41 @@
+@@ -495,16 +512,41 @@
  
    // ---------- Analysis ----------
  
@@ -83,7 +83,7 @@ index a6c9f4e..c3f684a 100644
    let idleTimer = 0;
    const poolBusy = () => !!(solver.workers && solver.shares && !solver.shares.every((s) => s.done));
    function releaseWorkers() {
-@@ -510,6 +552,11 @@
+@@ -525,6 +567,11 @@
    // check under way starts over on the new number.
    function setCores(n) {
      coreCap = Math.max(0, Math.floor(Number(n) || 0));
@@ -95,7 +95,7 @@ index a6c9f4e..c3f684a 100644
      if (solver.workers && solver.workers.length !== workerCount()) {
        const again = poolBusy() && solver.st ? { id: solver.id, st: solver.st, rollouts: solver.target } : null;
        releaseWorkers();
-@@ -569,7 +616,7 @@
+@@ -584,7 +631,7 @@
        solver.instant = null;
      }
      const options = S.candidates(st).length;
@@ -104,7 +104,7 @@ index a6c9f4e..c3f684a 100644
      solver.target = rollouts;
      solver.startedAt = Date.now();
      startCheck(solver.id, st, rollouts);
-@@ -580,24 +627,38 @@
+@@ -595,24 +642,38 @@
  
    function startCheck(id, st, rollouts) {
      const state = JSON.parse(JSON.stringify(st));
@@ -150,7 +150,7 @@ index a6c9f4e..c3f684a 100644
          solver.workers = null;
        }
      }
-@@ -686,6 +747,13 @@
+@@ -701,6 +762,13 @@
      if (r.done || r.options.length <= 1) return true;
      const [top, ...rest] = r.options;
      if (r.rounds >= LIVE_MIN && rest.every((o) => o.gapSe > 0 && top.mean - o.mean > CLEAR_SE * o.gapSe)) return true;
@@ -164,7 +164,7 @@ index a6c9f4e..c3f684a 100644
      // Out of time: the advice is the check's leader once it has LIVE_MIN
      // playouts each, else the strategy's own pick (recommendation()).
      return Date.now() - solver.startedAt >= CHECK_MS;
-@@ -720,6 +788,28 @@
+@@ -735,6 +803,28 @@
      return Object.assign({}, rec, { label: 'Cancel the consume, then end the day', why: `Your game shows a meal pick, where a meal or Cancel are the choices. ${rec.why || ''}`.trim() });
    }
  
@@ -193,7 +193,7 @@ index a6c9f4e..c3f684a 100644
    // The strategy's instant pick, unless the live check finds a clearly better
    // move (by more than its paired margin), so the advice doesn't flicker.
    function bestMove() {
-@@ -740,7 +830,10 @@
+@@ -755,7 +845,10 @@
        const why = mine === live ? pick.why : `${pick.why} The live check rates it about equal to the best.`;
        return Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why, option: mine });
      }
@@ -205,7 +205,7 @@ index a6c9f4e..c3f684a 100644
    }
  
    function fmtOption(goal, o, st) {
-@@ -1244,6 +1337,7 @@
+@@ -1260,6 +1353,7 @@
      // Always through setHTML, which skips what it wrote last: a headline
      // written past it left a new check showing the old move.
      if (stale) setHTML($('az-res-move'), 'Press Recheck for advice on this board');
@@ -213,7 +213,7 @@ index a6c9f4e..c3f684a 100644
      else if (working) setHTML($('az-res-move'), `${SPIN}Working it out…`);
      else setHTML($('az-res-move'), esc(rec ? rec.label : 'Nothing to decide here.'));
      $('az-do').hidden = !rec || stale;
-@@ -1339,7 +1433,10 @@
+@@ -1355,7 +1449,10 @@
      $('az-res-note').textContent = working || shown.length < 2
        ? ''
        : close
@@ -225,7 +225,7 @@ index a6c9f4e..c3f684a 100644
          : 'Each option is played out from your board with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are Rainbows in the vault by the end of the run.';
    }
  
-@@ -1841,15 +1938,50 @@
+@@ -1857,15 +1954,50 @@
        renderScan();
      };
      // The worker outlives this call, so it answers whichever reading is newest.
@@ -277,7 +277,7 @@ index a6c9f4e..c3f684a 100644
    // The reader's worker, started the first time it's needed. Readings of
    // the instrument pick answer through reader.picks, boards through
    // reader.pending.
-@@ -1865,7 +1997,10 @@
+@@ -1881,7 +2013,10 @@
              return;
            }
            const p = reader.pending;
@@ -289,7 +289,7 @@ index a6c9f4e..c3f684a 100644
          };
          reader.worker.onerror = () => {
            reader.failed = true;
-@@ -3396,14 +3531,15 @@
+@@ -3412,14 +3547,15 @@
        },
        useReading: () => useScan(),
        ask: () => ask(true),
