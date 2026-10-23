@@ -1,8 +1,8 @@
 {
   "version": "a6d5b0ce90",
   "base": "3f937ec894094c24b37f2701dbe4b6ff4f480cce",
-  "exe": 3,
-  "exeHash": "1b2d705577",
+  "exe": 4,
+  "exeHash": "d05b2efe04",
   "files": [
     "js/analyze.js",
     "js/capture.js",
@@ -12,5 +12,5 @@
     "js/solver.js",
     "js/tool-combos.js"
   ],
-  "at": "2026-10-23T03:33:50.669Z"
+  "at": "2026-10-23T23:23:57.618Z"
 }
