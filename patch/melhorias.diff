@@ -581,7 +581,7 @@ index e6894fd..0c9d640 100644
      // instrument picks, popups and other screens stay near 0.5 or under. A
      // darkened board (a devour's meal pick) also matches weakly, but its
 diff --git a/js/solver.js b/js/solver.js
-index d80a8cf..ebfb632 100644
+index d80a8cf..4e78f8b 100644
 --- a/js/solver.js
 +++ b/js/solver.js
 @@ -18,6 +18,7 @@
@@ -643,7 +643,7 @@ index d80a8cf..ebfb632 100644
 +  // 20), over every other profile: near the end, what pays later (a prey
 +  // mark, an opened door) pays less. Trained by strategy-sim.js train-late.
 +  const LATE_DAYS = 4;
-+  const LATE_PROFILE = {};
++  const LATE_PROFILE = {"tierBase":2.75,"rainbowMult":1.688,"wOpen":0.844,"wNow":0.791,"wStep":1,"wNest":0,"wChain":4.5,"wUsurp":0.375,"wInstigate":0.25,"wCrow":4,"wShort":0,"wStair":0.188,"minDevour":-1,"stopMargin":1,"swapMargin":2,"execMargin":5,"acceptChain":false,"giftChain":true,"gRing":-18,"gHorn":-2,"gBrand":6};
 +  const lateFor = (st) => !!st.params.rewards && Object.keys(LATE_PROFILE).length > 0 && (st.maxDays || T.DEFAULT_PARAMS.drillDays) - st.day < LATE_DAYS;
 +  const toolProfileCache = new Map();
 +  const paramsFor = (st) => {
