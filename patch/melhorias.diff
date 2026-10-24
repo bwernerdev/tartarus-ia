@@ -1,5 +1,5 @@
 diff --git a/js/analyze.js b/js/analyze.js
-index 753026a..cfcad3e 100644
+index 094c657..bbe4530 100644
 --- a/js/analyze.js
 +++ b/js/analyze.js
 @@ -59,15 +59,32 @@
@@ -289,7 +289,7 @@ index 753026a..cfcad3e 100644
          };
          reader.worker.onerror = () => {
            reader.failed = true;
-@@ -3418,14 +3553,15 @@
+@@ -3431,14 +3566,15 @@
        },
        useReading: () => useScan(),
        ask: () => ask(true),
