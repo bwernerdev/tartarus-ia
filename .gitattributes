@@ -1,2 +1,4 @@
 *.diff -text
 *.exe binary
+server/** -text
+lanterna/** binary

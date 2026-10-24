@@ -1,52 +1,56 @@
 # Tartarus AI
 
-The **Tartarus Overlay** (the advice card for Tartarus in Torchlight: Infinite)
-with a stronger AI that's also light on your PC.
+The **Lanterna** (the Tartarus overlay for Torchlight: Infinite) with a
+stronger Tartarus AI that's also light on your PC.
 
-Personal, **unofficial** project. The simulator and the Tartarus Overlay are by
-**CoffeeBns**: [blahdot3h/tartarus-simulator](https://github.com/blahdot3h/tartarus-simulator).
-This repository doesn't hold their code: Tartarus AI downloads the simulator
-straight from the author's GitHub and applies only the changes kept here
-(`patch/melhorias.diff`) on top.
+Personal, **unofficial** project. Credits:
+
+- **Lanterna** by **PlaayerBL**
+  ([PlaayerBL/lanterna-releases](https://github.com/PlaayerBL/lanterna-releases)),
+  shared here with the author's permission. Tartarus AI downloads the official
+  release (the runtime and the data) from there and puts only our version of
+  the app's files (`lanterna/`) on top.
+- The Tartarus simulator and its AI by **CoffeeBns**
+  ([blahdot3h/tartarus-simulator](https://github.com/blahdot3h/tartarus-simulator)).
+  This repository doesn't hold their code: Tartarus AI downloads it straight
+  from the author's GitHub and applies only the changes kept here
+  (`patch/melhorias.diff`).
 
 ## What's different
 
-- A deeper check of each move (several times the playouts of the live site),
-  retrained strategy weights, and profiles for instruments, pairs and run
-  contracts.
-- Light on the PC: the check uses at most half the processor cores (4 at most)
-  for at most 1.5 seconds per board, and the overlay runs at below-normal
-  priority, so the game always comes first.
-- Nothing else to install: no Node.js, no Git. It updates itself each time it
-  opens (and every 30 minutes while it runs; the overlay reloads when the run
-  ends).
+- Advice from the Tartarus AI, with a deeper check of each move, retrained
+  strategy weights, and profiles for instruments, pairs and run contracts.
+- Light on the PC: the AI uses at most half the processor cores (4 at most),
+  at below-normal priority, so the game always comes first.
+- Nothing else to install: no .NET, no Node.js, no Git. It updates itself each
+  time it opens.
 
 ## Install
 
 1. Download **[TartarusAI.exe](https://github.com/bwernerdev/tartarus-ia/raw/main/TartarusAI.exe)**
    and open it. Windows may warn that it's from an unknown publisher: click
    **More info**, then **Run anyway**.
-2. If the official **Tartarus Overlay** isn't installed yet, Tartarus AI offers
-   to install it: it downloads the newest installer from the author's
-   [releases page](https://github.com/blahdot3h/tartarus-simulator/releases/latest)
-   (about 120 MB), checks it against the release's SHA-512, and installs it.
-3. It installs itself in `%LOCALAPPDATA%\TartarusAI`, puts a **Tartarus AI**
-   shortcut on the desktop, and opens the overlay. The first time, the
-   overlay asks you to agree to its screenshot terms.
+2. The first time it downloads the official Lanterna (about 120 MB, checked
+   against the release's SHA-256), Node.js (about 30 MB, from nodejs.org,
+   checked the same way) and the AI. This can take a few minutes.
+3. It installs everything in `%LOCALAPPDATA%\TartarusAI`, puts a
+   **Tartarus AI** shortcut on the desktop, and opens the Lanterna.
 
-From then on, open **Tartarus AI** from the desktop instead of the Tartarus
-Overlay. Its icon sits by the clock while the overlay is open, and it closes
-when the overlay closes.
+From then on, open **Tartarus AI** from the desktop. Its icon sits by the
+clock while the Lanterna is open, and it closes when the Lanterna closes. In
+the game, **F8** turns the Lanterna on and off.
 
 ## Uninstall
 
 Right-click the Tartarus AI icon by the clock, then **Uninstall Tartarus AI**.
-It removes its folder, its shortcut and itself. The official Tartarus Overlay
-stays; remove it in Windows Settings > Apps if you want.
+It removes its folder (the Lanterna included), its shortcut and itself.
 
 ## Files here
 
-- `TartarusAI.exe`: the program (C#, source in the publisher's PC).
-- `patch/version.json`: the version, the author's commit it's built on, and
-  the program's version.
-- `patch/melhorias.diff`: the changes to the author's site.
+- `TartarusAI.exe`: the program (C#, source on the publisher's PC).
+- `patch/version.json`: the versions (the AI, the official Lanterna with its
+  SHA-256, Node.js with its SHA-256, the program) and the hashes of the files
+  below.
+- `patch/melhorias.diff`: the changes to the author's simulator.
+- `server/`: the AI server the Lanterna talks to.
+- `lanterna/`: our version of the Lanterna's app files.
