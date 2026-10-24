@@ -188,10 +188,12 @@ function scanRun(job) {
 // The phases where the Tartarus reader corrects a beast or rarity (stateFrom), and what it corrected last.
 const SCAN_FIRST = ['destino', 'cela', 'caca', 'sala', 'decisao'];
 let scanFixes = [];
-function stateFrom(r, scan) {
+// previous: the scan is an earlier frame's (adviseNow's first board): its extras only, since the
+// warden may have moved since and a replaced inmate would get the old one's beast or rarity.
+function stateFrom(r, scan, previous) {
   const fixes = (scanFixes = []);
   // The two readers on one frame: the extras count only where they agree on the warden.
-  const sc = scan && scan.cells && (!scan.warden || scan.warden.cell === int(r.diretor, -1)) ? scan : null;
+  const sc = scan && scan.cells && (previous || !scan.warden || scan.warden.cell === int(r.diretor, -1)) ? scan : null;
   const maxDays = clamp(int(r.maxDias, T.DEFAULT_PARAMS.drillDays), 5, 60);
   const st = T.newGame({ params: { rewards: true, drillDays: maxDays }, seed: 'LANTERNA' });
   st.rng = (Math.random() * 4294967296) >>> 0;
@@ -236,7 +238,7 @@ function stateFrom(r, scan) {
     // spots (a frame with 8 px of the title bar on top read Magic and Rare as Normal and a
     // Lion as a Mammoth; on frames in place the two agreed on every cell). Not on the meal
     // screens: there the Tartarus reader sees the dimmed inmates as Normal.
-    const fix = sc && SCAN_FIRST.includes(r.fase) && s && s.kind === 'inmate' && s.conf >= 0.6 && T.BEASTS.includes(s.beast) && Number.isFinite(s.tier) && s.tier <= TOP_TIER ? s : null;
+    const fix = sc && !previous && SCAN_FIRST.includes(r.fase) && s && s.kind === 'inmate' && s.conf >= 0.6 && T.BEASTS.includes(s.beast) && Number.isFinite(s.tier) && s.tier <= TOP_TIER ? s : null;
     if (fix && Number.isFinite(c.nivel) && (fix.beast !== c.fera || fix.tier !== c.nivel)) {
       fixes.push(`c${n + 1} ${c.fera}${c.nivel}>${fix.beast}${fix.tier}`);
       c = Object.assign({}, c, { fera: fix.beast, nivel: fix.tier });
@@ -546,8 +548,13 @@ function overlayBoard(mine) {
   built.st.rng = mine.st.rng;
   return { st: built.st, problem: null };
 }
-function boardFrom(reading, scan) {
-  return overlayBoard(stateFrom(reading, scan));
+function boardFrom(reading, scan, previous) {
+  return overlayBoard(stateFrom(reading, scan, previous));
+}
+// A board for comparing: the dice and a shown door's beast (drawn at random, the solver
+// re-rolls it) aren't the board.
+function boardKey(st) {
+  return JSON.stringify(Object.assign({}, st, { rng: 0, cells: st.cells.map((c) => (c.hidden ? Object.assign({}, c, { hidden: { tier: c.hidden.tier } }) : c)) }));
 }
 
 // reading.rapido: the strategy's own pick at once (no playouts), as the
@@ -556,22 +563,32 @@ async function adviseNow(reading, img) {
   const t0 = Date.now();
   loadAi();
   let scan = !img && reading.chave && lastScan.key === reading.chave ? lastScan.scan : null;
-  let { st, problem } = boardFrom(reading, scan);
-  let plan = problem ? null : start(st, reading.rapido);
-  // With a frame: the playouts start on the reading alone while the frame is scanned
-  // (the scan takes about a second); they start over only when its extras change the board.
-  let tScan = 0;
-  let fixed = [];
+  // With a frame: the playouts start while the frame is scanned (the scan takes about a
+  // second), on the reading plus the last frame's extras (a shown door's rarity, a nest, prey
+  // marks: they stay from screen to screen), and start over only when this frame's scan
+  // changes the board. On the reading alone, about 1 in 7 destination and decision screens
+  // started over for those extras (+1.4 s; 2026-10-24's runs).
   // The instrument and gift picks cover the board: the reader finds nothing there to add,
   // and its second or two was all the wait (the check had already settled).
-  if (img && reading.fase !== 'instrumento' && reading.fase !== 'presente') {
+  const scanned = !!img && reading.fase !== 'instrumento' && reading.fase !== 'presente';
+  // Not on the meal screens: there the reader sees the dimmed inmates otherwise, and a
+  // board from the last frame's extras started over more often (consumir 4 > 10 restarts).
+  const previous = scanned && SCAN_FIRST.includes(reading.fase) && !scan && !!lastScan.scan;
+  let { st, problem } = boardFrom(reading, previous ? lastScan.scan : scan, previous);
+  let plan = problem ? null : start(st, reading.rapido);
+  let tScan = 0;
+  let fixed = [];
+  if (scanned) {
     scan = await scanFrame(img);
-    lastScan = { key: reading.chave || null, scan };
     tScan = Date.now() - t0;
+  }
+  // A scan past SCAN_MS (null) keeps the first board: the last frame's extras beat none.
+  if (scan && scanned) {
+    lastScan = { key: reading.chave || null, scan };
     const again = boardFrom(reading, scan);
     fixed = scanFixes.slice();
-    if (again.st) again.st.rng = st ? st.rng : again.st.rng; // a random seed per board: not a difference
-    if (again.problem || problem || JSON.stringify(again.st) !== JSON.stringify(st)) {
+    if (again.problem || problem || boardKey(again.st) !== boardKey(st)) {
+      if (!problem && !again.problem && !reading.rapido) console.log(`lanterna: the scan changed the ${reading.fase} board; the check starts over`);
       ({ st, problem } = again);
       plan = problem ? null : start(st, reading.rapido);
     }
@@ -602,8 +619,7 @@ async function adviseNow(reading, img) {
 const REUSE_MS = 5 * 60 * 1000;
 const PLANS_MAX = 40;
 function start(st, rapido) {
-  // The dice and a shown door's beast (drawn at random, the solver re-rolls it) aren't the board.
-  const key = rapido ? null : JSON.stringify(Object.assign({}, st, { rng: 0, cells: st.cells.map((c) => (c.hidden ? Object.assign({}, c, { hidden: { tier: c.hidden.tier } }) : c)) }));
+  const key = rapido ? null : boardKey(st);
   const seen = key && plans.get(key);
   if (seen && (seen.running || Date.now() - seen.at < REUSE_MS)) return seen.plan;
   let pick = null;
