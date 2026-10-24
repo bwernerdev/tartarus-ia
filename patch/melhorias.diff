@@ -459,6 +459,42 @@ index 730c0b3..99bab44 100644
      if (frame) setState({ frames: state.frames + 1 });
      emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
    }
+diff --git a/js/engine.js b/js/engine.js
+index ba44a86..96ef729 100644
+--- a/js/engine.js
++++ b/js/engine.js
+@@ -62,7 +62,9 @@
+     destinations: 3,
+     patrolRange: 6,
+     eventTwoDoors: false,
+-    fewerDoorsChance: 0,
++    // Local build: players' boards (tools/live-data.js rates, 2026-10-24): 1,449 of
++    // 8,592 mornings (16.9%) offered one door fewer; it was 0.
++    fewerDoorsChance: 17,
+     swapsPerDay: 1,
+     reusableCells: true,
+     // The game's Cancel stops a consume chain after any bite (user,
+@@ -74,7 +76,9 @@
+     // behind a door (1,011 doors without the Sorting Hook or the Dog Tag).
+     // Who a Replace brings in, from 30,000 runs' boards (2026-10-22): these
+     // rarities, and never the beast it replaced (0.3% of Replaces).
+-    tierWeights: [40, 38, 12, 8, 2],
++    // Local build: the same, on 7,191 doors (2026-10-24): 41.8/35.9/11.4/9.2/1.8; it was
++    // 40/38/12/8/2 (from 1,011 doors).
++    tierWeights: [41.8, 35.9, 11.4, 9.2, 1.8],
+     swapWeights: [42, 34, 11.5, 9.5, 2.5],
+     swapNewBeast: true,
+     beastWeights: [25, 25, 25, 25],
+@@ -96,7 +100,8 @@
+     // one follows each event the warden sets off, on a random cell (30,000
+     // runs' boards, 2026-10-22: one new mark after about 88% of them, never
+     // two); other moves almost never bring one (0.2-0.5%, left at 0).
+-    eventStartChance: 72,
++    // Local build: 931 first boards (2026-10-24): 60.0% with an event; it was 72.
++    eventStartChance: 60,
+     eventFollowChance: 88,
+     eventMorningChance: 0,
+     eventWalkChance: 0,
 diff --git a/js/follow.js b/js/follow.js
 index f5cacd5..65b4b24 100644
 --- a/js/follow.js

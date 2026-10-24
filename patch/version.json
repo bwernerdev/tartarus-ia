@@ -1,11 +1,12 @@
 {
-  "version": "5f2ab2297f",
+  "version": "3e9c7c9382",
   "base": "308b9479bcd0857a581a7e7b7917d0a8e0c5062e",
   "exe": 7,
   "exeHash": "c12a70e322",
   "files": [
     "js/analyze.js",
     "js/capture.js",
+    "js/engine.js",
     "js/follow.js",
     "js/scan-worker.js",
     "js/scan.js",
@@ -34,5 +35,5 @@
   ],
   "node": "v24.21.0",
   "nodeSha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
-  "at": "2026-10-24T18:09:19.375Z"
+  "at": "2026-10-24T18:21:10.913Z"
 }
