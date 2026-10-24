@@ -23,7 +23,7 @@
   "serverHash": "39095e9248",
   "lanterna": "1.4.0",
   "lanternaSha256": "f5e47c6b0b7307f432e9dd7f75a6bb5c7a6545a6eef592b2d52ed7fc6064ad97",
-  "app": "c4862282ed",
+  "app": "8a4201af63",
   "appFiles": [
     "Lanterna.exe",
     "Lanterna.dll",
@@ -31,9 +31,10 @@
     "Visao.dll",
     "Nucleo.dll",
     "Lanterna.deps.json",
-    "Lanterna.runtimeconfig.json"
+    "Lanterna.runtimeconfig.json",
+    "traducao-pt.txt"
   ],
   "node": "v24.21.0",
   "nodeSha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
-  "at": "2026-10-24T20:13:42.229Z"
+  "at": "2026-10-24T20:19:33.469Z"
 }

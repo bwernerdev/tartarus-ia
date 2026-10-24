@@ -1,0 +1,42 @@
+# Tradução do Tartarus para o jogo em português: "português = inglês", uma por linha.
+# O português é um trecho: vale quando o texto lido na tela contém ele (sem acento, ç vira c,
+# maiúscula ou minúscula tanto faz). Um trecho curto (o começo da palavra) pega mais variações.
+# O inglês é o texto que a Lanterna procura no jogo em inglês: um título, um botão, "day",
+# "attempts", "Completed" ou o nome de um instrumento (como no jogo em inglês).
+# Este arquivo vai junto nas atualizações; o leitor o lê quando a Lanterna abre.
+
+# Títulos das telas
+Instrumento de Tortura = Torture Instrument
+Tesouro = Treasure
+para Consumir = Inmate to Consume
+a Consumir = Inmate to Consume
+ser Consumid = Inmate to Consume
+Destino = Destination
+Objetivo = Objective
+Decis = Decision
+Sele = Selection
+Pris = Prison Status
+Rebeli = Riot
+Motim = Riot
+
+# Contador de dias, re-roll e objetivo cumprido
+dia = day
+tentativa = attempts
+Conclu = Completed
+
+# Botões da decisão e da sala do diretor
+Consumir = Consume
+Substitu = Replace
+Trocar = Replace
+Cacar = Hunt
+Encerr = End
+Termin = End
+Finaliz = End
+Instig = Instigate
+Conced = Bestow
+Concess = Bestow
+Outorg = Bestow
+Agraci = Bestow
+
+# Instrumentos (sem nome aqui, a carta é reconhecida pelo desenho)
+Chicote de Ferro Farpado = Barbed Whip
