@@ -1,5 +1,5 @@
 {
-  "version": "ca4b63cf13",
+  "version": "c2a571406c",
   "base": "308b9479bcd0857a581a7e7b7917d0a8e0c5062e",
   "exe": 7,
   "exeHash": "c12a70e322",
@@ -19,7 +19,7 @@
     "lanterna-scan-worker.js",
     "analyze-node.js"
   ],
-  "serverHash": "929d14fc16",
+  "serverHash": "4d018b1342",
   "lanterna": "1.4.0",
   "lanternaSha256": "f5e47c6b0b7307f432e9dd7f75a6bb5c7a6545a6eef592b2d52ed7fc6064ad97",
   "app": "d362a457d5",
@@ -34,5 +34,5 @@
   ],
   "node": "v24.21.0",
   "nodeSha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
-  "at": "2026-10-24T16:06:27.383Z"
+  "at": "2026-10-24T16:16:41.988Z"
 }

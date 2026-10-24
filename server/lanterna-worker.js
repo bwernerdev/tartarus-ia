@@ -12,9 +12,11 @@ parentPort.on('message', (m) => {
     if (m.id === current) current = 0;
     return;
   }
-  const { id, state, rollouts, stream } = m;
+  const { id, state, rollouts, stream, cells } = m;
   current = id;
   const job = S.solve(state, { rollouts, stream: stream || 0, seed: (id * 7919 + 1) >>> 0 });
+  // cells (lanterna.js focus()): only these doors are played out; job.rows is the list solve plays.
+  if (cells) for (let i = job.rows.length - 1; i >= 0; i--) if (job.rows[i].action.type === 'patrol' && !cells.includes(job.rows[i].action.cell)) job.rows.splice(i, 1);
   let sent = 0;
   const tick = () => {
     if (id !== current) return;

@@ -366,7 +366,7 @@ function workers() {
   return pool;
 }
 
-function check(st, rollouts, pick) {
+function check(st, rollouts, pick, cells) {
   // A check cut short by another board's: its partial answer is never reused.
   if (active) {
     active.cut = true;
@@ -446,7 +446,7 @@ function check(st, rollouts, pick) {
     };
     timer = setTimeout(cap, Math.min(LANTERNA_MS, TUNING.ms));
     active = job;
-    ws.forEach((w, k) => w.postMessage({ id, state, rollouts: shares[k].target, stream: k }));
+    ws.forEach((w, k) => w.postMessage({ id, state, rollouts: shares[k].target, stream: k, cells }));
   });
 }
 
@@ -618,6 +618,23 @@ async function adviseNow(reading, img) {
 // A new AI (training, update) clears them (loadAi).
 const REUSE_MS = 5 * 60 * 1000;
 const PLANS_MAX = 40;
+// The free cell pick (Ratway: any of 15 doors): split over every door the check got 92-153
+// rounds in 1.2-3 s, and 3 of 8 stayed under LIVE_MIN (the strategy's pick, unchecked). It plays
+// only the strategy's best TOP_CELLS doors (patrolScores) and its pick: on the 7 such boards in
+// the records, 400 rounds on all 15 doors found the best one inside its top 5 every time (2nd on
+// 2 of them, where the strategy picked another). null: every option is played.
+const TOP_CELLS = 5;
+function focus(st, pick) {
+  const doors = S.candidates(st).filter((c) => c.action.type === 'patrol');
+  if (doors.length <= TOP_CELLS) return null;
+  try {
+    const cells = S.patrolScores(st, S.context(st, S.paramsFor(st))).slice(0, TOP_CELLS).map((s) => s.cell);
+    if (pick && pick.action.type === 'patrol' && !cells.includes(pick.action.cell)) cells.push(pick.action.cell);
+    return cells.length ? cells : null;
+  } catch (e) {
+    return null;
+  }
+}
 function start(st, rapido) {
   const key = rapido ? null : boardKey(st);
   const seen = key && plans.get(key);
@@ -626,9 +643,10 @@ function start(st, rapido) {
   try {
     pick = S.instant(st);
   } catch (e) {}
-  const options = S.candidates(st).length;
+  const cells = focus(st, pick);
+  const options = cells ? S.candidates(st).filter((c) => c.action.type !== 'patrol' || cells.includes(c.action.cell)).length : S.candidates(st).length;
   const rollouts = clamp(Math.round(TUNING.budget / Math.max(1, options)), 400, TUNING.maxPer);
-  const run = !rapido && options > 1 ? check(st, rollouts, pick) : Promise.resolve(null);
+  const run = !rapido && options > 1 ? check(st, rollouts, pick, cells) : Promise.resolve(null);
   const plan = { pick, options, check: run };
   if (key) {
     const entry = { plan, running: true, at: Date.now() };
@@ -741,4 +759,4 @@ function warm() {
   }
 }
 
-module.exports = { warm, handle, advise, stateFrom, boardFrom, boardModel, toolId };
+module.exports = { warm, handle, advise, stateFrom, boardFrom, boardModel, toolId, focus };
