@@ -98,3 +98,7 @@ Ataude do Vingador = Avenger's Casket
 Poste da Morte = Burning Stake
 Gancho de Sele = Sorting Hook
 Grande do Carcereiro = Gaoler's Execution Axe
+# [visto] num print do amigo (a carta selecionada, maior, não era lida pelo desenho)
+Jaula Superlotada = Crowded Beastcage
+Corrente Longa = Long-Chained Shackles
+Corrente Curta = Short-Chained Shackles
