@@ -260,7 +260,9 @@ function stateFrom(r, scan, previous) {
   st.chain = false;
   const objId = (r.objetivo && OBJECTIVES[r.objetivo.id]) || 'other';
   const need = (T.OBJECTIVES[objId] && T.OBJECTIVES[objId].need) || 0;
-  st.objective = { id: objId, progress: need ? clamp(int(r.objetivo.feito, 0), 0, need) : 0 };
+  // "Completed" on the panel is the whole need, whatever count was read (2026-10-24: Behind Cell
+  // Doors read 9/10 when done; st.milestone already kept it from paying twice).
+  st.objective = { id: objId, progress: need ? (r.objetivo && r.objetivo.cumprido ? need : clamp(int(r.objetivo.feito, 0), 0, need)) : 0 };
   const card = START_CARDS[String(r.carta || '').toLowerCase()];
   st.startEvent = card && T.START_EVENTS && T.START_EVENTS[card] ? card : null;
   st.milestone = !!(r.objetivo && r.objetivo.cumprido) || (need > 0 && st.objective.progress >= need);
