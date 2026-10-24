@@ -26,8 +26,9 @@ Pris = Prison Status
 Rebeli = Riot
 Motim = Riot
 
-# Objetivo da run (no painel à esquerda, depois de "Objetivo:")
+# Objetivo da run (no painel à esquerda: "Objetivo: <nome>" e a descrição embaixo)
 # [visto] "...do Mais Forte", com "Acumule N vezes de Devorar"
+# Pelo nome:
 Mais Forte = Survival of the Fittest
 Rei d = King of the Caged
 Enjaulad = King of the Caged
@@ -36,6 +37,23 @@ Caminhada = Prison Walk
 Correntez = Undercurrents
 Correntes Ocultas = Undercurrents
 Portas = Behind Cell Doors
+# Pela descrição, com palavras vistas nas cartas do jogo em português (cada uma só aparece
+# na descrição de um objetivo). No inglês: King "At least 1 Inmate's rarity reaches
+# Ultimate", Survival "Consume 4 times", Undercurrents "Prison Incident Trigger 2 times",
+# Behind Cell Doors "Open 10 cells", Prison Walk "Move 18 tiles".
+Devorar = Survival of the Fittest
+Raridade = King of the Caged
+Incidente = Undercurrents
+Acione = Undercurrents
+acionad = Undercurrents
+Abra = Behind Cell Doors
+Abrir = Behind Cell Doors
+abert = Behind Cell Doors
+Mova = Prison Walk
+Mover = Prison Walk
+Percorr = Prison Walk
+casas = Prison Walk
+passos = Prison Walk
 
 # Contador de dias, re-roll e objetivo cumprido
 dia = day
