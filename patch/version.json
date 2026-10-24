@@ -1,5 +1,5 @@
 {
-  "version": "0573356728",
+  "version": "ca4b63cf13",
   "base": "308b9479bcd0857a581a7e7b7917d0a8e0c5062e",
   "exe": 7,
   "exeHash": "c12a70e322",
@@ -19,10 +19,10 @@
     "lanterna-scan-worker.js",
     "analyze-node.js"
   ],
-  "serverHash": "323bb95412",
+  "serverHash": "929d14fc16",
   "lanterna": "1.4.0",
   "lanternaSha256": "f5e47c6b0b7307f432e9dd7f75a6bb5c7a6545a6eef592b2d52ed7fc6064ad97",
-  "app": "17180ec5d6",
+  "app": "d362a457d5",
   "appFiles": [
     "Lanterna.exe",
     "Lanterna.dll",
@@ -34,5 +34,5 @@
   ],
   "node": "v24.21.0",
   "nodeSha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
-  "at": "2026-10-24T16:02:46.994Z"
+  "at": "2026-10-24T16:06:27.383Z"
 }

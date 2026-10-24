@@ -681,6 +681,14 @@ function handle(req, res) {
     reply(200, { ok: true });
     return true;
   }
+  // The Lanterna's "Atualizar agora": the server closes, and the Lanterna starts it again
+  // with the updated code (a new AI alone loadAi would take, but not this file or serve.js).
+  if (req.method === 'POST' && req.url === '/lanterna/sair') {
+    reply(200, { ok: true });
+    console.log('lanterna: asked to close (Atualizar agora)');
+    setTimeout(() => process.exit(0), 100);
+    return true;
+  }
   if (req.method !== 'POST' || req.url !== '/lanterna/advise') {
     reply(404, { problema: 'não existe' });
     return true;
