@@ -23,7 +23,7 @@
   "serverHash": "39095e9248",
   "lanterna": "1.4.0",
   "lanternaSha256": "f5e47c6b0b7307f432e9dd7f75a6bb5c7a6545a6eef592b2d52ed7fc6064ad97",
-  "app": "0ddf23656d",
+  "app": "7ff0f05334",
   "appFiles": [
     "Lanterna.exe",
     "Lanterna.dll",
@@ -35,5 +35,5 @@
   ],
   "node": "v24.21.0",
   "nodeSha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
-  "at": "2026-10-24T18:59:55.971Z"
+  "at": "2026-10-24T19:56:34.076Z"
 }
