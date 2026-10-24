@@ -4,13 +4,20 @@
 # O inglês é o texto que a Lanterna procura no jogo em inglês: um título, um botão, "day",
 # "attempts", "Completed" ou o nome de um instrumento (como no jogo em inglês).
 # Este arquivo vai junto nas atualizações; o leitor o lê quando a Lanterna abre.
+#
+# [visto] = lido num print do jogo em português (o amigo, 2026-10-24). O resto é palpite,
+# a partir do vocabulário visto: Devorar (Consume), Trocar (Replace), Prisioneiro (Inmate),
+# Carcereiro-Mor (Warden), Cela (Cell), Rerrolar (Re-roll), Tempo restante (Remaining attempts).
 
 # Títulos das telas
 Instrumento de Tortura = Torture Instrument
+# [visto] "Escolha um Instrumento de Tortura"
 Tesouro = Treasure
+para Devorar = Inmate to Consume
+a Devorar = Inmate to Consume
+ser Devorad = Inmate to Consume
 para Consumir = Inmate to Consume
 a Consumir = Inmate to Consume
-ser Consumid = Inmate to Consume
 Destino = Destination
 Objetivo = Objective
 Decis = Decision
@@ -19,16 +26,33 @@ Pris = Prison Status
 Rebeli = Riot
 Motim = Riot
 
+# Objetivo da run (no painel à esquerda, depois de "Objetivo:")
+# [visto] "...do Mais Forte", com "Acumule N vezes de Devorar"
+Mais Forte = Survival of the Fittest
+Rei d = King of the Caged
+Enjaulad = King of the Caged
+Passeio = Prison Walk
+Caminhada = Prison Walk
+Correntez = Undercurrents
+Correntes Ocultas = Undercurrents
+Portas = Behind Cell Doors
+
 # Contador de dias, re-roll e objetivo cumprido
 dia = day
+restante = attempts
+# [visto] "Tempo restante1" sobre o Rerrolar
 tentativa = attempts
 Conclu = Completed
 
 # Botões da decisão e da sala do diretor
+Devorar = Consume
+# [visto] "Devorar" e "Trocar" nas cartas, como as ações do jogo
 Consumir = Consume
-Substitu = Replace
 Trocar = Replace
+Substitu = Replace
 Cacar = Hunt
+# O OCR em inglês lê o ç como g (visto: "Balanga")
+Cagar = Hunt
 Encerr = End
 Termin = End
 Finaliz = End
@@ -39,4 +63,8 @@ Outorg = Bestow
 Agraci = Bestow
 
 # Instrumentos (sem nome aqui, a carta é reconhecida pelo desenho)
+# [visto] os três
 Chicote de Ferro Farpado = Barbed Whip
+Balanca do Carcereiro = Warden's Scales
+Balanga do Carcereiro = Warden's Scales
+Corrente Faminta = Ferocious Beast's Ravenous Chains
