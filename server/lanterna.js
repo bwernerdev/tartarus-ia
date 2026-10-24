@@ -568,6 +568,18 @@ function boardKey(st) {
   return JSON.stringify(Object.assign({}, st, { rng: 0, cells: st.cells.map((c) => (c.hidden ? Object.assign({}, c, { hidden: { tier: c.hidden.tier } }) : c)) }));
 }
 
+// reading.previa: the Lanterna's first read of a new screen, sent one read before the one that
+// confirms it (Orquestrador.Antecipar). Its scan and check start then; the confirmed request for
+// the same screen joins them: the check by its board (start()), the scan by previewKey. The
+// advice is the same, one read sooner. A preview is answered at once and never recorded.
+const PREVIEW_MS = 5000;
+let preview = null;
+function previewKey(r) {
+  const o = Object.assign({}, r);
+  for (const k of ['chave', 'rapido', 'previa', 'quadro']) delete o[k];
+  return JSON.stringify(o);
+}
+
 // reading.rapido: the strategy's own pick at once (no playouts), as the
 // overlay's "likely move"; the Lanterna asks again for the checked one.
 async function adviseNow(reading, img) {
@@ -587,7 +599,12 @@ async function adviseNow(reading, img) {
   const previous = scanned && SCAN_FIRST.includes(reading.fase) && !scan && !!lastScan.scan;
   let { st, problem } = boardFrom(reading, previous ? lastScan.scan : scan, previous);
   // The scan starts first: the check plays on half the workers until it ends (check()).
-  const scanning = scanned ? scanFrame(img) : null;
+  // A preview's scan (the same screen read once before) is this request's: scanning the frame
+  // again would wait for it in the worker's queue.
+  const pk = previewKey(reading);
+  const joined = scanned && !reading.previa && preview && preview.key === pk && Date.now() - preview.at < PREVIEW_MS ? preview.scanning : null;
+  const scanning = scanned ? joined || scanFrame(img) : null;
+  if (reading.previa && scanning) preview = { key: pk, scanning, at: Date.now() };
   let plan = problem ? null : start(st, reading.rapido, scanning);
   let tScan = 0;
   let fixed = [];
@@ -617,9 +634,9 @@ async function adviseNow(reading, img) {
   const rec = best(pick, r);
   if (!rec) return { problema: 'sem conselho' };
   const out = Object.assign(rec, { rounds: r ? r.rounds : 0, ms: Date.now() - t0, msScan: tScan, cut: !!(r && r.cut), fixed });
-  tempo(reading, out);
+  if (!reading.previa) tempo(reading, out);
   // A cut check's answer goes to a screen the Lanterna has left: not a move of the run.
-  if (!out.cut) record(st, reading, out);
+  if (!out.cut && !reading.previa) record(st, reading, out);
   return out;
 }
 
@@ -748,6 +765,12 @@ function handle(req, res) {
       } else reading = JSON.parse(body.toString('utf8'));
     } catch (e) {
       reply(400, { problema: 'pedido inválido' });
+      return;
+    }
+    // A preview: answered at once, its scan and check go on for the confirmed request.
+    if (reading.previa) {
+      reply(202, { previa: true });
+      advise(reading, img).catch(() => {});
       return;
     }
     advise(reading, img).then(
