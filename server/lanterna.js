@@ -366,7 +366,10 @@ function workers() {
   return pool;
 }
 
-function check(st, rollouts, pick, cells) {
+// wait: the frame's scan, under way (adviseNow). Until it ends only half the workers play: the scan
+// shares the cores with them, and the advice waits for it (with the game open, 15 board frames
+// read in 598 ms p50 alone, 877 beside 4 playout workers, 1560 beside 8; 2026-10-24).
+function check(st, rollouts, pick, cells, wait) {
   // A check cut short by another board's: its partial answer is never reused.
   if (active) {
     active.cut = true;
@@ -446,7 +449,15 @@ function check(st, rollouts, pick, cells) {
     };
     timer = setTimeout(cap, Math.min(LANTERNA_MS, TUNING.ms));
     active = job;
-    ws.forEach((w, k) => w.postMessage({ id, state, rollouts: shares[k].target, stream: k, cells }));
+    const go = (k) => ws[k].postMessage({ id, state, rollouts: shares[k].target, stream: k, cells });
+    const first = wait ? Math.max(1, Math.ceil(ws.length / 2)) : ws.length;
+    for (let k = 0; k < first; k++) go(k);
+    if (first < ws.length) {
+      wait.then(() => {
+        if (active !== job) return;
+        for (let k = first; k < ws.length; k++) go(k);
+      });
+    }
   });
 }
 
@@ -575,11 +586,13 @@ async function adviseNow(reading, img) {
   // board from the last frame's extras started over more often (consumir 4 > 10 restarts).
   const previous = scanned && SCAN_FIRST.includes(reading.fase) && !scan && !!lastScan.scan;
   let { st, problem } = boardFrom(reading, previous ? lastScan.scan : scan, previous);
-  let plan = problem ? null : start(st, reading.rapido);
+  // The scan starts first: the check plays on half the workers until it ends (check()).
+  const scanning = scanned ? scanFrame(img) : null;
+  let plan = problem ? null : start(st, reading.rapido, scanning);
   let tScan = 0;
   let fixed = [];
   if (scanned) {
-    scan = await scanFrame(img);
+    scan = await scanning;
     tScan = Date.now() - t0;
   }
   // A scan past SCAN_MS (null) keeps the first board: the last frame's extras beat none.
@@ -635,7 +648,7 @@ function focus(st, pick) {
     return null;
   }
 }
-function start(st, rapido) {
+function start(st, rapido, wait) {
   const key = rapido ? null : boardKey(st);
   const seen = key && plans.get(key);
   if (seen && (seen.running || Date.now() - seen.at < REUSE_MS)) return seen.plan;
@@ -646,7 +659,7 @@ function start(st, rapido) {
   const cells = focus(st, pick);
   const options = cells ? S.candidates(st).filter((c) => c.action.type !== 'patrol' || cells.includes(c.action.cell)).length : S.candidates(st).length;
   const rollouts = clamp(Math.round(TUNING.budget / Math.max(1, options)), 400, TUNING.maxPer);
-  const run = !rapido && options > 1 ? check(st, rollouts, pick, cells) : Promise.resolve(null);
+  const run = !rapido && options > 1 ? check(st, rollouts, pick, cells, wait) : Promise.resolve(null);
   const plan = { pick, options, check: run };
   if (key) {
     const entry = { plan, running: true, at: Date.now() };
