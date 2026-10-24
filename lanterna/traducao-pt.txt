@@ -2,50 +2,54 @@
 # O português é um trecho: vale quando o texto lido na tela contém ele (sem acento, ç vira c,
 # maiúscula ou minúscula tanto faz). Um trecho curto (o começo da palavra) pega mais variações.
 # O inglês é o texto que a Lanterna procura no jogo em inglês: um título, um botão, "day",
-# "attempts", "Completed" ou o nome de um instrumento (como no jogo em inglês).
+# "attempts", "Completed", o nome de um objetivo ou de um instrumento.
 # Este arquivo vai junto nas atualizações; o leitor o lê quando a Lanterna abre.
 #
-# [visto] = lido num print do jogo em português (o amigo, 2026-10-24). O resto é palpite,
-# a partir do vocabulário visto: Devorar (Consume), Trocar (Replace), Prisioneiro (Inmate),
-# Carcereiro-Mor (Warden), Cela (Cell), Rerrolar (Re-roll), Tempo restante (Remaining attempts).
+# [visto] = lido nas fotos do jogo em português do amigo (2026-10-24, 211 telas de uma run).
+# O resto é palpite a partir do vocabulário visto.
 
 # Títulos das telas
-Instrumento de Tortura = Torture Instrument
 # [visto] "Escolha um Instrumento de Tortura"
+Instrumento de Tortura = Torture Instrument
+# [visto] "Concluiu o Objetivo, escolha a Recompensa do Instrumento"
+Recompensa do Instrumento = Torture Instrument
+# [visto] "Quando a Raridade do Prisioneiro atingir Prismático, obtenha o Tesouro ..."
 Tesouro = Treasure
-para Devorar = Inmate to Consume
-a Devorar = Inmate to Consume
+# [visto] "Selecione o Prisioneiro a ser Devorado"
 ser Devorad = Inmate to Consume
-para Consumir = Inmate to Consume
-a Consumir = Inmate to Consume
+para Devorar = Inmate to Consume
+# [visto] "Selecione o destino"
 Destino = Destination
+# [visto] "Selecione o Objetivo"
 Objetivo = Objective
+# [visto] "Por favor, tome uma Decisão"
 Decis = Decision
 Sele = Selection
+# [visto] "Ver Status da Prisão"
 Pris = Prison Status
-Rebeli = Riot
+# [visto] "Motim eclodiu em Taros"
 Motim = Riot
+Rebeli = Riot
 
 # Objetivo da run (no painel à esquerda: "Objetivo: <nome>" e a descrição embaixo)
-# [visto] "...do Mais Forte", com "Acumule N vezes de Devorar"
-# Pelo nome:
-Mais Forte = Survival of the Fittest
-Rei d = King of the Caged
+# [visto] "Rei das Feras Enjauladas", "Ao menos 1 Prisioneiro atinge a Raridade Perfeito"
 Enjaulad = King of the Caged
+Rei das Feras = King of the Caged
+# [visto] "Surto das Correntes Ocultas", "Ativado 2 vezes no total ! Incidente Carcerário"
+Correntes Ocultas = Undercurrents
+Surto das = Undercurrents
+# [visto] "...do Mais Forte", "Acumule N vezes de Devorar"
+Mais Forte = Survival of the Fittest
 Passeio = Prison Walk
 Caminhada = Prison Walk
-Correntez = Undercurrents
-Correntes Ocultas = Undercurrents
 Portas = Behind Cell Doors
-# Pela descrição, com palavras vistas nas cartas do jogo em português (cada uma só aparece
-# na descrição de um objetivo). No inglês: King "At least 1 Inmate's rarity reaches
-# Ultimate", Survival "Consume 4 times", Undercurrents "Prison Incident Trigger 2 times",
-# Behind Cell Doors "Open 10 cells", Prison Walk "Move 18 tiles".
+# Pela descrição, se o nome não for lido. No inglês: King "At least 1 Inmate's rarity
+# reaches Ultimate", Survival "Consume 4 times", Undercurrents "Prison Incident Trigger
+# 2 times", Behind Cell Doors "Open 10 cells", Prison Walk "Move 18 tiles".
 Devorar = Survival of the Fittest
 Raridade = King of the Caged
 Incidente = Undercurrents
-Acione = Undercurrents
-acionad = Undercurrents
+Ativado = Undercurrents
 Abra = Behind Cell Doors
 Abrir = Behind Cell Doors
 abert = Behind Cell Doors
@@ -56,22 +60,24 @@ casas = Prison Walk
 passos = Prison Walk
 
 # Contador de dias, re-roll e objetivo cumprido
+# [visto] "19 dias restantes até o Motim"
 dia = day
+# [visto] "Tempo restante1" sobre o "Rerrolar"
 restante = attempts
-# [visto] "Tempo restante1" sobre o Rerrolar
 tentativa = attempts
+# [visto] "Concluído"
 Conclu = Completed
 
 # Botões da decisão e da sala do diretor
+# [visto] "Devorar", "Trocar", "Encerrar"
 Devorar = Consume
-# [visto] "Devorar" e "Trocar" nas cartas, como as ações do jogo
-Consumir = Consume
 Trocar = Replace
+Encerr = End
+Consumir = Consume
 Substitu = Replace
 Cacar = Hunt
 # O OCR em inglês lê o ç como g (visto: "Balanga")
 Cagar = Hunt
-Encerr = End
 Termin = End
 Finaliz = End
 Instig = Instigate
@@ -81,8 +87,14 @@ Outorg = Bestow
 Agraci = Bestow
 
 # Instrumentos (sem nome aqui, a carta é reconhecida pelo desenho)
-# [visto] os três
+# [visto] todos estes, cada um conferido pelo desenho da carta
 Chicote de Ferro Farpado = Barbed Whip
 Balanca do Carcereiro = Warden's Scales
 Balanga do Carcereiro = Warden's Scales
 Corrente Faminta = Ferocious Beast's Ravenous Chains
+Caixao Humano = Severed Iron Maiden
+Serra Enferrujada = Rusty Saw
+Ataude do Vingador = Avenger's Casket
+Poste da Morte = Burning Stake
+Gancho de Sele = Sorting Hook
+Grande do Carcereiro = Gaoler's Execution Axe
