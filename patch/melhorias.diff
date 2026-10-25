@@ -1,5 +1,5 @@
 diff --git a/js/analyze.js b/js/analyze.js
-index 094c657..bbe4530 100644
+index c1ebd99..14c1c60 100644
 --- a/js/analyze.js
 +++ b/js/analyze.js
 @@ -59,15 +59,32 @@
@@ -225,7 +225,7 @@ index 094c657..bbe4530 100644
          : 'Each option is played out from your board with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are Rainbows in the vault by the end of the run.';
    }
  
-@@ -1858,15 +1955,50 @@
+@@ -1862,15 +1959,50 @@
        renderScan();
      };
      // The worker outlives this call, so it answers whichever reading is newest.
@@ -277,7 +277,7 @@ index 094c657..bbe4530 100644
    // The reader's worker, started the first time it's needed. Readings of
    // the instrument pick answer through reader.picks, boards through
    // reader.pending.
-@@ -1882,7 +2014,10 @@
+@@ -1886,7 +2018,10 @@
              return;
            }
            const p = reader.pending;
@@ -289,7 +289,7 @@ index 094c657..bbe4530 100644
          };
          reader.worker.onerror = () => {
            reader.failed = true;
-@@ -3431,14 +3566,15 @@
+@@ -3435,14 +3570,15 @@
        },
        useReading: () => useScan(),
        ask: () => ask(true),
@@ -308,19 +308,36 @@ index 094c657..bbe4530 100644
        toast,
      };
 diff --git a/js/capture.js b/js/capture.js
-index 730c0b3..99bab44 100644
+index 307f836..e358019 100644
 --- a/js/capture.js
 +++ b/js/capture.js
-@@ -18,7 +18,7 @@
+@@ -18,24 +18,7 @@
  (function () {
    'use strict';
  
--  const POLL_MS = 1000;
+-  // How often the log is looked at: a move is seen within a quarter second
+-  // (it was once a second, a second of the time to the advice).
+-  const POLL_MS = 250;
+-  // How much of its settle time each kind of trigger waits now: pictures
+-  // come as fast as they can, and a kind waits longer only after a picture
+-  // of it read badly (the user, 2026-10-24). follow.js says which (slower,
+-  // faster); a quarter at first, never more than the whole.
+-  const FAST_MIN = 0.25;
+-  const fast = {};
+-  const shareOf = (kind) => (fast[kind] === undefined ? FAST_MIN : fast[kind]);
+-  function slower(kind) {
+-    fast[kind] = Math.min(1, shareOf(kind) * 2);
+-    return fast[kind];
+-  }
+-  function faster(kind) {
+-    fast[kind] = Math.max(FAST_MIN, shareOf(kind) * 0.85);
+-    return fast[kind];
+-  }
 +  const POLL_MS = 250; // local build: new log lines seen within a quarter second (live: 1000)
    const IDB = 'tartarus-sim-capture';
    const listeners = { status: [], hit: [], seen: [], frame: [] };
    // detail: whether the game writes the detail lines the triggers come from
-@@ -305,6 +305,117 @@
+@@ -325,6 +308,117 @@
      if (burst.hits.length < 40) burst.hits.push({ kind: hit.kind, at: hit.at, text: hit.text });
      clearTimeout(burst.timer);
      burst.timer = setTimeout(fire, burst.settle);
@@ -438,7 +455,7 @@ index 730c0b3..99bab44 100644
    }
  
    async function fire() {
-@@ -312,6 +423,20 @@
+@@ -332,6 +426,20 @@
      burst = null;
      if (!b) return;
      const frame = await grab();
@@ -457,7 +474,7 @@ index 730c0b3..99bab44 100644
 +      }
 +    } else if (b.stats) noteEarly(b, { waited: null });
      if (frame) setState({ frames: state.frames + 1 });
-     emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
+     emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date(), waited: b.settle, full: b.full });
    }
 diff --git a/js/engine.js b/js/engine.js
 index ba44a86..96ef729 100644
@@ -496,7 +513,7 @@ index ba44a86..96ef729 100644
      eventMorningChance: 0,
      eventWalkChance: 0,
 diff --git a/js/follow.js b/js/follow.js
-index f5cacd5..65b4b24 100644
+index caead8e..c59ad0f 100644
 --- a/js/follow.js
 +++ b/js/follow.js
 @@ -433,8 +433,28 @@
@@ -522,7 +539,7 @@ index f5cacd5..65b4b24 100644
 +  }
 +
    async function onFrame(f) {
--    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '' };
+-    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '', waited: f.waited || 0, wholeWait: f.full || 0, retake: !!f.retake, at: Date.now() };
 +    const again = retaking && retaking.kind === f.kind ? retaking : null;
 +    retaking = null;
 +    const c = { id: nextId++, time: f.time, kind: f.kind, hits: again ? again.hits : f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '', retry: !!again };
@@ -545,7 +562,7 @@ index f5cacd5..65b4b24 100644
 +    if (m.read && !m.read.ok && !m.read.treasure && /no tartarus prison board|couldn.t be opened|not read/i.test(m.read.reason || '')) retake(c);
      if (m.state) c.state = m.state;
      if (m.asked) c.asked = true;
-     renderCaptures();
+     judge(c, m);
 diff --git a/js/scan-worker.js b/js/scan-worker.js
 index 71f9b93..e6b6644 100644
 --- a/js/scan-worker.js
