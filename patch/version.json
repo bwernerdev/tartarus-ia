@@ -1,8 +1,8 @@
 {
   "version": "23a11c79f2",
   "base": "9238df87030c718925ef6e5fd2c94ad97dd78abf",
-  "exe": 7,
-  "exeHash": "c12a70e322",
+  "exe": 8,
+  "exeHash": "7767b4c70f",
   "files": [
     "js/analyze.js",
     "js/capture.js",
@@ -23,7 +23,7 @@
   "serverHash": "a37ec0fb90",
   "lanterna": "1.4.1",
   "lanternaSha256": "9c419ed70a710e9f081d39bc415e0fabceda24ff5af0239e10da17327a5489e0",
-  "app": "6a9a762ee8",
+  "app": "46c8a92f16",
   "appFiles": [
     "Lanterna.exe",
     "Lanterna.dll",
@@ -36,5 +36,5 @@
   ],
   "node": "v24.21.0",
   "nodeSha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
-  "at": "2026-10-25T04:32:15.250Z"
+  "at": "2026-10-25T04:53:13.376Z"
 }
