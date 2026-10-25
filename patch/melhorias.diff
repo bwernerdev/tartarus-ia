@@ -1,5 +1,5 @@
 diff --git a/js/analyze.js b/js/analyze.js
-index 9b3cb23..1116eb2 100644
+index eed415f..3a73e85 100644
 --- a/js/analyze.js
 +++ b/js/analyze.js
 @@ -59,15 +59,32 @@
@@ -289,7 +289,7 @@ index 9b3cb23..1116eb2 100644
          };
          reader.worker.onerror = () => {
            reader.failed = true;
-@@ -3530,31 +3665,15 @@
+@@ -3533,31 +3668,15 @@
        },
        useReading: () => useScan(),
        ask: () => ask(true),
@@ -325,36 +325,66 @@ index 9b3cb23..1116eb2 100644
        toast,
      };
 diff --git a/js/capture.js b/js/capture.js
-index 606c5c8..606f39d 100644
+index e0be405..8144b23 100644
 --- a/js/capture.js
 +++ b/js/capture.js
-@@ -18,24 +18,7 @@
+@@ -18,54 +18,7 @@
  (function () {
    'use strict';
  
 -  // How often the log is looked at: a move is seen within a quarter second
 -  // (it was once a second, a second of the time to the advice).
 -  const POLL_MS = 250;
--  // How much of its settle time each kind of trigger waits now: pictures
--  // come as fast as they can, and a kind waits longer only after a picture
--  // of it read badly (the user, 2026-10-24). follow.js says which (slower,
--  // faster); a quarter at first, never more than the whole.
+-  // How much of its settle time each trigger waits now: pictures come as
+-  // fast as they can, and a trigger waits longer only after a picture of it
+-  // came too soon (the user, 2026-10-24). follow.js says which (slower,
+-  // faster); a quarter at first, never more than the whole. Each trigger
+-  // (its kind and pattern) learns its own: the game's screens fade in at
+-  // their own pace (door cards after a new day, the decision cards after a
+-  // move). A share that came too soon is never gone back to, and what was
+-  // learned is kept between visits.
 -  const FAST_MIN = 0.25;
--  const fast = {};
--  const shareOf = (kind) => (fast[kind] === undefined ? FAST_MIN : fast[kind]);
--  function slower(kind) {
--    fast[kind] = Math.min(1, shareOf(kind) * 2);
--    return fast[kind];
+-  // The instrument offer and the objective flip their cards in: a picture
+-  // a quarter of the way in failed about half the time (the user's runs of
+-  // 2026-10-25), and each failed read cost seconds. They wait the whole.
+-  const FAST_FLOOR = { instruments: 1, objective: 1 };
+-  const WAITS = 'tartarus-sim:capture-waits:v1';
+-  let waits = { fast: {}, bad: {} };
+-  try {
+-    const kept = JSON.parse(localStorage.getItem(WAITS) || 'null');
+-    if (kept && kept.fast && kept.bad) waits = kept;
+-  } catch (e) {
+-    // none kept
 -  }
--  function faster(kind) {
--    fast[kind] = Math.max(FAST_MIN, shareOf(kind) * 0.85);
--    return fast[kind];
+-  const keep = () => {
+-    try {
+-      localStorage.setItem(WAITS, JSON.stringify(waits));
+-    } catch (e) {
+-      // not kept
+-    }
+-  };
+-  const floorOf = (key) => Math.max(FAST_MIN, FAST_FLOOR[String(key).split('|')[0]] || 0);
+-  const shareOf = (key) => Math.max(floorOf(key), waits.fast[key] === undefined ? FAST_MIN : waits.fast[key]);
+-  function slower(key) {
+-    const now = shareOf(key);
+-    waits.bad[key] = Math.max(waits.bad[key] || 0, now);
+-    waits.fast[key] = Math.min(1, now * 2);
+-    keep();
+-    return waits.fast[key];
+-  }
+-  function faster(key) {
+-    const now = shareOf(key);
+-    // Not back to a share that came too soon: a little more than it.
+-    const least = waits.bad[key] ? Math.min(1, waits.bad[key] * 1.25) : 0;
+-    waits.fast[key] = Math.max(floorOf(key), least, now * 0.85);
+-    if (waits.fast[key] !== now) keep();
+-    return waits.fast[key];
 -  }
 +  const POLL_MS = 250; // local build: new log lines seen within a quarter second (live: 1000)
    const IDB = 'tartarus-sim-capture';
    const listeners = { status: [], hit: [], seen: [], frame: [] };
    // detail: whether the game writes the detail lines the triggers come from
-@@ -327,6 +310,117 @@
+@@ -363,6 +316,117 @@
      if (burst.hits.length < 40) burst.hits.push({ kind: hit.kind, at: hit.at, text: hit.text });
      clearTimeout(burst.timer);
      burst.timer = setTimeout(fire, burst.settle);
@@ -472,7 +502,7 @@ index 606c5c8..606f39d 100644
    }
  
    // retry: a burst whose picture couldn't be taken after the share of its
-@@ -336,14 +430,20 @@
+@@ -372,14 +436,20 @@
      if (!retry) burst = null;
      if (!b) return;
      const frame = await grab();
@@ -499,7 +529,7 @@ index 606c5c8..606f39d 100644
 +      }
 +    } else if (b.stats) noteEarly(b, { waited: null });
      if (frame) setState({ frames: state.frames + 1 });
-     emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date(), waited: retry ? b.full : b.settle, full: b.full });
+     emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date(), waited: retry ? b.full : b.settle, full: b.full, key: b.key });
    }
 diff --git a/js/engine.js b/js/engine.js
 index ba44a86..96ef729 100644
@@ -538,7 +568,7 @@ index ba44a86..96ef729 100644
      eventMorningChance: 0,
      eventWalkChance: 0,
 diff --git a/js/follow.js b/js/follow.js
-index caead8e..c59ad0f 100644
+index ae00340..cdf51c7 100644
 --- a/js/follow.js
 +++ b/js/follow.js
 @@ -433,8 +433,28 @@
@@ -564,7 +594,7 @@ index caead8e..c59ad0f 100644
 +  }
 +
    async function onFrame(f) {
--    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '', waited: f.waited || 0, wholeWait: f.full || 0, retake: !!f.retake, at: Date.now() };
+-    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '', waited: f.waited || 0, wholeWait: f.full || 0, retake: !!f.retake, of: f.of || 0, key: f.key || f.kind, at: Date.now() };
 +    const again = retaking && retaking.kind === f.kind ? retaking : null;
 +    retaking = null;
 +    const c = { id: nextId++, time: f.time, kind: f.kind, hits: again ? again.hits : f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '', retry: !!again };
@@ -579,7 +609,7 @@ index caead8e..c59ad0f 100644
        // The Warden's Treasure needs no picture (every gift is on offer), so
        // the analyzer hears of it anyway.
        if (c.kind === 'treasure' && prefs.read) {
-@@ -491,6 +512,8 @@
+@@ -495,6 +516,8 @@
      const c = captures.find((x) => x.id === m.id);
      if (!c) return;
      if (m.read) c.read = m.read;
