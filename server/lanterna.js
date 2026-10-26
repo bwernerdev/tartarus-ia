@@ -36,6 +36,8 @@ const plans = new Map();
 let TUNING = { budget: 40000, maxPer: 6000, ms: 3000, switchMin: 0.02 };
 let LIVE_MIN = 150;
 const LANTERNA_MS = Number(process.env.LANTERNA_MS) || 1200;
+// The cap for a close call (see check()): more playouts only where they can change the advice.
+const LANTERNA_MS_DIFICIL = Number(process.env.LANTERNA_MS_DIFICIL) || 2500;
 let CLEAR_SE = 3;
 function analyzeNumbers() {
   try {
@@ -446,8 +448,21 @@ function check(st, rollouts, pick, cells, wait) {
         timer = setTimeout(cap, 50);
         return;
       }
+      // A close call (2026-10-25): past the cap, a move still within 2 standard errors of the
+      // leader, with errors that big enough to matter (over switchMin), keeps the check going
+      // up to LANTERNA_MS_DIFICIL or until it settles. Plain ties (gaps under switchMin, as 15
+      // locked doors) don't wait.
+      if (result && result.rounds >= LIVE_MIN && spent < Math.min(LANTERNA_MS_DIFICIL, TUNING.ms) && !settled() && close()) {
+        result.extra = true;
+        timer = setTimeout(cap, 50);
+        return;
+      }
       if (result) result.early = !result.done;
       job.finish();
+    };
+    const close = () => {
+      const [top, ...rest] = result.options;
+      return rest.some((o) => o.gapSe > TUNING.switchMin / 2 && top.mean - o.mean < 2 * o.gapSe);
     };
     timer = setTimeout(cap, Math.min(LANTERNA_MS, TUNING.ms));
     active = job;
@@ -635,7 +650,7 @@ async function adviseNow(reading, img) {
   const r = await plan.check;
   const rec = best(pick, r);
   if (!rec) return { problema: 'sem conselho' };
-  const out = Object.assign(rec, { rounds: r ? r.rounds : 0, ms: Date.now() - t0, msScan: tScan, cut: !!(r && r.cut), fixed });
+  const out = Object.assign(rec, { rounds: r ? r.rounds : 0, ms: Date.now() - t0, msScan: tScan, cut: !!(r && r.cut), extra: !!(r && r.extra), fixed });
   if (!reading.previa) tempo(reading, out);
   // A cut check's answer goes to a screen the Lanterna has left: not a move of the run.
   if (!out.cut && !reading.previa) record(st, reading, out);
@@ -714,7 +729,7 @@ function tempo(reading, out) {
       return `${k}=${JSON.stringify(a).slice(0, 80)}`;
     };
     const what = changed.map(diff).join(' ');
-    const line = `${new Date().toISOString()} ${reading.fase} chave=${reading.chave} ms=${out.ms} scan=${out.msScan} rounds=${out.rounds} live=${!!out.live} ${out.cut ? 'cortada ' : ''}${out.fixed && out.fixed.length ? `leitor do Tartarus: ${out.fixed.join(' ')} ` : ''}${what ? `mudou: ${what} ` : ''}${out.label || out.problema || ''}\n`;
+    const line = `${new Date().toISOString()} ${reading.fase} chave=${reading.chave} ms=${out.ms} scan=${out.msScan} rounds=${out.rounds} live=${!!out.live} ${out.cut ? 'cortada ' : ''}${out.extra ? 'dificil ' : ''}${out.fixed && out.fixed.length ? `leitor do Tartarus: ${out.fixed.join(' ')} ` : ''}${what ? `mudou: ${what} ` : ''}${out.label || out.problema || ''}\n`;
     if (fs.existsSync(TEMPOS) && fs.statSync(TEMPOS).size > 2 * 1024 * 1024) fs.renameSync(TEMPOS, `${TEMPOS}.1`);
     fs.appendFileSync(TEMPOS, line);
   } catch (e) {}
