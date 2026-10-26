@@ -986,7 +986,7 @@
         "runtime": {
           "Integracao.dll": {
             "assemblyVersion": "1.0.0",
-            "fileVersion": "1.4.4.0"
+            "fileVersion": "1.4.0.0"
           }
         }
       },
@@ -994,7 +994,7 @@
         "runtime": {
           "Nucleo.dll": {
             "assemblyVersion": "1.0.0",
-            "fileVersion": "1.4.4.0"
+            "fileVersion": "1.4.0.0"
           }
         }
       },
@@ -1005,7 +1005,7 @@
         "runtime": {
           "Visao.dll": {
             "assemblyVersion": "1.0.0",
-            "fileVersion": "1.4.4.0"
+            "fileVersion": "1.4.0.0"
           }
         }
       },
