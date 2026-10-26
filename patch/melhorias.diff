@@ -1,5 +1,5 @@
 diff --git a/js/analyze.js b/js/analyze.js
-index 829c968..9205fcd 100644
+index 2ad0d44..6677f8f 100644
 --- a/js/analyze.js
 +++ b/js/analyze.js
 @@ -59,15 +59,32 @@
@@ -225,7 +225,7 @@ index 829c968..9205fcd 100644
          : 'Each option is played out from your board with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are Rainbows in the vault by the end of the run.';
    }
  
-@@ -1955,15 +2052,50 @@
+@@ -1957,15 +2054,50 @@
        renderScan();
      };
      // The worker outlives this call, so it answers whichever reading is newest.
@@ -277,7 +277,7 @@ index 829c968..9205fcd 100644
    // The reader's worker, started the first time it's needed. Readings of
    // the instrument pick answer through reader.picks, boards through
    // reader.pending.
-@@ -1979,7 +2111,10 @@
+@@ -1981,7 +2113,10 @@
              return;
            }
            const p = reader.pending;
@@ -289,7 +289,7 @@ index 829c968..9205fcd 100644
          };
          reader.worker.onerror = () => {
            reader.failed = true;
-@@ -3539,31 +3674,15 @@
+@@ -3543,31 +3678,15 @@
        },
        useReading: () => useScan(),
        ask: () => ask(true),
@@ -325,7 +325,7 @@ index 829c968..9205fcd 100644
        toast,
      };
 diff --git a/js/capture.js b/js/capture.js
-index 7a1db97..768724d 100644
+index f8b2f01..65642c9 100644
 --- a/js/capture.js
 +++ b/js/capture.js
 @@ -18,54 +18,7 @@
@@ -505,7 +505,7 @@ index 7a1db97..768724d 100644
    }
  
    // #region settle-watch
-@@ -509,15 +572,21 @@
+@@ -527,15 +590,21 @@
        stopWatch();
      }
      if (!b) return;
