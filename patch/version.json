@@ -21,9 +21,9 @@
     "analyze-node.js"
   ],
   "serverHash": "6a2ecbf512",
-  "lanterna": "1.4.3",
-  "lanternaSha256": "f626c593c0ce3e156ae9bba69632ef1b96de44fde9a1d164caab614f7aba08ae",
-  "app": "ebf09bc939",
+  "lanterna": "1.4.4",
+  "lanternaSha256": "2bf9d855c5dc27b63e1345ac70fd4bb571daf9caa373ae113722c2152befc721",
+  "app": "c506febfc7",
   "appFiles": [
     "Lanterna.exe",
     "Lanterna.dll",
@@ -36,5 +36,5 @@
   ],
   "node": "v24.21.0",
   "nodeSha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
-  "at": "2026-10-26T09:20:29.612Z"
+  "at": "2026-10-26T20:49:15.180Z"
 }
