@@ -1,5 +1,5 @@
 diff --git a/js/analyze.js b/js/analyze.js
-index eed415f..3a73e85 100644
+index fa07b72..030e29e 100644
 --- a/js/analyze.js
 +++ b/js/analyze.js
 @@ -59,15 +59,32 @@
@@ -205,7 +205,7 @@ index eed415f..3a73e85 100644
    }
  
    function fmtOption(goal, o, st) {
-@@ -1351,6 +1444,7 @@
+@@ -1352,6 +1445,7 @@
      // Always through setHTML, which skips what it wrote last: a headline
      // written past it left a new check showing the old move.
      if (stale) setHTML($('az-res-move'), 'Press Recheck for advice on this board');
@@ -213,7 +213,7 @@ index eed415f..3a73e85 100644
      else if (working) setHTML($('az-res-move'), `${SPIN}Working it out…`);
      else setHTML($('az-res-move'), esc(rec ? rec.label : 'Nothing to decide here.'));
      $('az-do').hidden = !rec || stale;
-@@ -1446,7 +1540,10 @@
+@@ -1447,7 +1541,10 @@
      $('az-res-note').textContent = working || shown.length < 2
        ? ''
        : close
@@ -225,7 +225,7 @@ index eed415f..3a73e85 100644
          : 'Each option is played out from your board with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are Rainbows in the vault by the end of the run.';
    }
  
-@@ -1954,15 +2051,50 @@
+@@ -1955,15 +2052,50 @@
        renderScan();
      };
      // The worker outlives this call, so it answers whichever reading is newest.
@@ -277,7 +277,7 @@ index eed415f..3a73e85 100644
    // The reader's worker, started the first time it's needed. Readings of
    // the instrument pick answer through reader.picks, boards through
    // reader.pending.
-@@ -1978,7 +2110,10 @@
+@@ -1979,7 +2111,10 @@
              return;
            }
            const p = reader.pending;
@@ -289,7 +289,7 @@ index eed415f..3a73e85 100644
          };
          reader.worker.onerror = () => {
            reader.failed = true;
-@@ -3533,31 +3668,15 @@
+@@ -3534,31 +3669,15 @@
        },
        useReading: () => useScan(),
        ask: () => ask(true),
@@ -568,7 +568,7 @@ index ba44a86..96ef729 100644
      eventMorningChance: 0,
      eventWalkChance: 0,
 diff --git a/js/follow.js b/js/follow.js
-index ae00340..cdf51c7 100644
+index 0bea2dd..4b505cf 100644
 --- a/js/follow.js
 +++ b/js/follow.js
 @@ -433,8 +433,28 @@
@@ -609,7 +609,7 @@ index ae00340..cdf51c7 100644
        // The Warden's Treasure needs no picture (every gift is on offer), so
        // the analyzer hears of it anyway.
        if (c.kind === 'treasure' && prefs.read) {
-@@ -495,6 +516,8 @@
+@@ -497,6 +518,8 @@
      const c = captures.find((x) => x.id === m.id);
      if (!c) return;
      if (m.read) c.read = m.read;
@@ -638,7 +638,7 @@ index 71f9b93..e6b6644 100644
        self.postMessage({ id, kind, result: self.TartarusScan.readObjectiveTitle(img) });
        return;
 diff --git a/js/scan.js b/js/scan.js
-index 8852890..39fba7d 100644
+index e96c81e..497d454 100644
 --- a/js/scan.js
 +++ b/js/scan.js
 @@ -263,6 +263,18 @@
@@ -670,7 +670,7 @@ index 8852890..39fba7d 100644
        // The coarsest level that still shows the frame's detail.
        let L = 0;
        while (L + 1 < levels.length && s / levels[L + 1].f >= 0.2) L += 1;
-@@ -2094,8 +2107,15 @@
+@@ -2095,8 +2108,15 @@
      const gray = grayOf(img);
      const sharp = blur(gray, img.width, img.height, 1);
      const cache = opts && opts.cache;
