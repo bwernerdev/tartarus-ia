@@ -515,6 +515,16 @@ function best(pick, r) {
   return { action: live.action, label: live.label, why: 'The playouts found a better move than the strategy’s quick pick.', live: true, mean: live.mean };
 }
 
+// Every move the check played, with its Rainbows a run, best first: the Lanterna writes the
+// number over each option on screen (as the TLI Overlay Plus does). `bom`: it does as well as
+// the best within best()'s margin (green there). Only for a check best() takes as live.
+function opcoes(r) {
+  const ranked = r ? r.options : [];
+  if (!r || ranked.length < 2 || !((r.done && !r.early) || r.rounds >= LIVE_MIN)) return null;
+  const top = ranked[0];
+  return ranked.map((o) => ({ action: o.action, mean: Math.round(o.mean * 1000) / 1000, bom: o === top || top.mean - o.mean <= Math.max(1.96 * o.gapSe, TUNING.switchMin) }));
+}
+
 // The Lanterna's runs, as the overlay records its own (records/<run>/record.jsonl,
 // "advice" lines with the analyzer's board model), so the studies of the
 // user's runs (local/jobs.js USER_TOOLS, diagnostico.js) count them too.
@@ -676,7 +686,7 @@ async function adviseNow(reading, img) {
   const r = await plan.check;
   const rec = best(pick, r);
   if (!rec) return { problema: 'sem conselho' };
-  const out = Object.assign(rec, { rounds: r ? r.rounds : 0, ms: Date.now() - t0, msScan: tScan, cut: !!(r && r.cut), extra: !!(r && r.extra), fixed, motor: r ? r.motor : null });
+  const out = Object.assign(rec, { rounds: r ? r.rounds : 0, ms: Date.now() - t0, msScan: tScan, cut: !!(r && r.cut), extra: !!(r && r.extra), fixed, motor: r ? r.motor : null, opcoes: opcoes(r) });
   if (!reading.previa) tempo(reading, out);
   // A cut check's answer goes to a screen the Lanterna has left: not a move of the run.
   if (!out.cut && !reading.previa) record(st, reading, out);

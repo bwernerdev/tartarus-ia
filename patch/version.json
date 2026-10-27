@@ -1,5 +1,5 @@
 {
-  "version": "fe9fa6bd77",
+  "version": "6626fc3849",
   "base": "5e8af6654542a1a850c0413da5a70c47fe4183b1",
   "exe": 8,
   "exeHash": "7767b4c70f",
@@ -23,10 +23,10 @@
     "TartarusMotor.exe",
     "motor-aceito.json"
   ],
-  "serverHash": "77a9c104ab",
+  "serverHash": "8d9d70ac25",
   "lanterna": "1.4.4",
   "lanternaSha256": "2bf9d855c5dc27b63e1345ac70fd4bb571daf9caa373ae113722c2152befc721",
-  "app": "de694b9128",
+  "app": "a37054abfe",
   "appFiles": [
     "Lanterna.exe",
     "Lanterna.dll",
@@ -39,5 +39,5 @@
   ],
   "node": "v24.21.0",
   "nodeSha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
-  "at": "2026-10-27T23:42:11.982Z"
+  "at": "2026-10-27T23:52:37.408Z"
 }
