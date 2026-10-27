@@ -15,6 +15,18 @@ const { spawn } = require('child_process');
 
 const EXE = path.join(__dirname, 'TartarusMotor.exe');
 const JS_DIR = path.join(__dirname, '..', 'js');
+// The engine.js/solver.js pairs local/motor-confere.js checked after an update (all equal).
+const ACEITO = path.join(__dirname, 'motor-aceito.json');
+const aceitoSig = () => {
+  try {
+    const st = fs.statSync(ACEITO);
+    return `${st.size}:${st.mtimeMs}`;
+  } catch (e) {
+    return '';
+  }
+};
+// motor-aceito.json as it was when the engine was refused: a new check there starts it again.
+let offSig = null;
 
 let proc = null;
 let ready = false;
@@ -44,6 +56,7 @@ function say(text) {
 function fail(why) {
   if (off) return;
   off = why;
+  offSig = aceitoSig();
   ready = false;
   if (proc) {
     try {
@@ -105,6 +118,10 @@ function start(engine, solver, failed) {
   T = engine;
   S = solver;
   onFail = failed;
+  if (off && offSig !== null && aceitoSig() !== offSig) {
+    off = '';
+    offSig = null;
+  }
   if (proc || off) return;
   if (process.env.LANTERNA_MOTOR === 'js') {
     off = 'LANTERNA_MOTOR=js';
@@ -116,7 +133,7 @@ function start(engine, solver, failed) {
     return;
   }
   try {
-    proc = spawn(EXE, ['--abaixo', 'serve', JS_DIR], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    proc = spawn(EXE, ['--abaixo', 'serve', JS_DIR, ACEITO], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
   } catch (e) {
     proc = null;
     return fail(e.message);
@@ -143,6 +160,7 @@ function restart(engine, solver, failed) {
   }
   ready = false;
   off = '';
+  offSig = null;
   jobs.clear();
   start(engine, solver, failed);
 }
