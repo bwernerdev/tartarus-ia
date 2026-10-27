@@ -20,6 +20,11 @@ Personal, **unofficial** project. Credits:
 
 - Advice from the Tartarus AI, with a deeper check of each move, retrained
   strategy weights, and profiles for instruments, pairs and run contracts.
+- A fast engine for that check: the simulator's playouts compiled in C#
+  (`server/TartarusMotor.exe`), about 14 times faster than in JavaScript,
+  with the same results, so each move gets several times more playouts in
+  less time. If the author's rules change, it steps aside and the
+  JavaScript plays until it's updated.
 - Light on the PC: the AI uses at most half the processor cores (4 at most),
   at below-normal priority, so the game always comes first.
 - Nothing else to install: no .NET, no Node.js, no Git. It updates itself each
@@ -52,5 +57,6 @@ It removes its folder (the Lanterna included), its shortcut and itself.
   SHA-256, Node.js with its SHA-256, the program) and the hashes of the files
   below.
 - `patch/melhorias.diff`: the changes to the author's simulator.
-- `server/`: the AI server the Lanterna talks to.
+- `server/`: the AI server the Lanterna talks to, with its C# playout
+  engine (`TartarusMotor.exe`; the source stays on the publisher's PC).
 - `lanterna/`: our version of the Lanterna's app files.

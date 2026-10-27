@@ -79,6 +79,20 @@ function loadAi() {
     for (const w of pool) w.terminate();
     pool = null;
   }
+  // The C# engine reads solver.js and tool-combos.js at start (and checks engine.js): a new one.
+  if (motorPool || motor.off) {
+    if (active && active.motor) active.finish();
+    motorPool = null;
+    motor.restart(T, S, motorFailed);
+  }
+}
+// The C# engine (local/lanterna-motor.js): the check's playouts, ~14x faster; JS workers when
+// it's off (missing, refused, failed).
+const motor = require('./lanterna-motor.js');
+let motorPool = null;
+function motorFailed() {
+  motorPool = null;
+  if (active && active.motor) active.finish();
 }
 loadAi();
 
@@ -351,6 +365,16 @@ function stateFrom(r, scan, previous) {
 // ---------- The check (js/analyze.js ask/startCheck/merge/bestMove) ----------
 let jobId = 0;
 function workers() {
+  // The C# engine once it said hello (it starts with the first check or warm()); the same
+  // number of streams as workers, each on its own thread, below normal.
+  motor.start(T, S, motorFailed);
+  if (motor.ready) {
+    if (!motorPool) {
+      motorPool = motor.pool(WORKERS);
+      motorPool.forEach((w, k) => w.on('message', (m) => active && active.onShare(k, m)));
+    }
+    return motorPool;
+  }
   if (pool) return pool;
   // The game is open: these playouts yield to it.
   try {
@@ -381,6 +405,7 @@ function check(st, rollouts, pick, cells, wait) {
   }
   const id = ++jobId;
   const ws = workers();
+  const viaMotor = !!(ws[0] && ws[0].motor);
   const state = JSON.parse(JSON.stringify(st));
   const shares = ws.map((_, k) => ({ target: Math.floor(rollouts / ws.length) + (k < rollouts % ws.length ? 1 : 0), rounds: 0, done: false, rows: null }));
   let meta = null;
@@ -388,6 +413,7 @@ function check(st, rollouts, pick, cells, wait) {
   const startedAt = Date.now();
   return new Promise((resolve) => {
     const job = {
+      motor: viaMotor,
       onShare(k, m) {
         if (m.id !== id) return;
         const share = shares[k];
@@ -424,7 +450,7 @@ function check(st, rollouts, pick, cells, wait) {
         return row;
       });
       const rounds = shares.reduce((sum, s) => sum + s.rounds, 0);
-      result = Object.assign(S.summarize(rows, rounds, rollouts), { done: shares.every((s) => s.done) });
+      result = Object.assign(S.summarize(rows, rounds, rollouts), { done: shares.every((s) => s.done), motor: viaMotor ? 'cs' : 'js' });
     };
     const settled = () => {
       if (result.options.length <= 1) return true;
@@ -650,7 +676,7 @@ async function adviseNow(reading, img) {
   const r = await plan.check;
   const rec = best(pick, r);
   if (!rec) return { problema: 'sem conselho' };
-  const out = Object.assign(rec, { rounds: r ? r.rounds : 0, ms: Date.now() - t0, msScan: tScan, cut: !!(r && r.cut), extra: !!(r && r.extra), fixed });
+  const out = Object.assign(rec, { rounds: r ? r.rounds : 0, ms: Date.now() - t0, msScan: tScan, cut: !!(r && r.cut), extra: !!(r && r.extra), fixed, motor: r ? r.motor : null });
   if (!reading.previa) tempo(reading, out);
   // A cut check's answer goes to a screen the Lanterna has left: not a move of the run.
   if (!out.cut && !reading.previa) record(st, reading, out);
@@ -712,10 +738,11 @@ function start(st, rapido, wait) {
 
 // One line a request in local/lanterna-tempos.log (2 MB, then .1),
 // to tell where a slow answer's time went.
-const TEMPOS = path.join(__dirname, 'lanterna-tempos.log');
+// LANTERNA_TEMPOS=<file>: another file (tests), written even with LANTERNA_SEM_REGISTRO.
+const TEMPOS = process.env.LANTERNA_TEMPOS || path.join(__dirname, 'lanterna-tempos.log');
 let lastAsked = null;
 function tempo(reading, out) {
-  if (NO_RECORD) return;
+  if (NO_RECORD && !process.env.LANTERNA_TEMPOS) return;
   try {
     // What changed since the request before on the same kind of screen (why one screen was asked twice).
     const changed = lastAsked && lastAsked.fase === reading.fase ? Object.keys(reading).filter((k) => k !== 'chave' && k !== 'quadro' && JSON.stringify(reading[k]) !== JSON.stringify(lastAsked[k])) : [];
@@ -729,7 +756,7 @@ function tempo(reading, out) {
       return `${k}=${JSON.stringify(a).slice(0, 80)}`;
     };
     const what = changed.map(diff).join(' ');
-    const line = `${new Date().toISOString()} ${reading.fase} chave=${reading.chave} ms=${out.ms} scan=${out.msScan} rounds=${out.rounds} live=${!!out.live} ${out.cut ? 'cortada ' : ''}${out.extra ? 'dificil ' : ''}${out.fixed && out.fixed.length ? `leitor do Tartarus: ${out.fixed.join(' ')} ` : ''}${what ? `mudou: ${what} ` : ''}${out.label || out.problema || ''}\n`;
+    const line = `${new Date().toISOString()} ${reading.fase} chave=${reading.chave} ms=${out.ms} scan=${out.msScan} rounds=${out.rounds} live=${!!out.live} ${out.motor ? `motor=${out.motor} ` : ''}${out.cut ? 'cortada ' : ''}${out.extra ? 'dificil ' : ''}${out.fixed && out.fixed.length ? `leitor do Tartarus: ${out.fixed.join(' ')} ` : ''}${what ? `mudou: ${what} ` : ''}${out.label || out.problema || ''}\n`;
     if (fs.existsSync(TEMPOS) && fs.statSync(TEMPOS).size > 2 * 1024 * 1024) fs.renameSync(TEMPOS, `${TEMPOS}.1`);
     fs.appendFileSync(TEMPOS, line);
   } catch (e) {}
@@ -804,9 +831,11 @@ function handle(req, res) {
 function warm() {
   try {
     loadAi();
+    motor.start(T, S, motorFailed);
     scanLoad();
     const { st } = boardFrom({ fase: 'destino', dia: 1, maxDias: 20, diretor: 0, celas: [], destinos: [1, 2, 3] }, null);
-    if (st) check(st, 60, null).then(() => console.log('lanterna: ready'));
+    // With the C# engine's hello first, so the warm-up doesn't start the JS workers.
+    if (st) motor.whenReady(3000).then(() => check(st, 60, null)).then(() => console.log('lanterna: ready'));
   } catch (e) {
     console.log(`lanterna warm-up failed: ${e.message}`);
   }
