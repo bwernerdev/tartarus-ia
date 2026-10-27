@@ -765,6 +765,9 @@ function tempo(reading, out) {
 // Wired into local/serve.js: true when it took the request.
 function handle(req, res) {
   if (!req.url.startsWith('/lanterna/')) return false;
+  // The Lanterna pings first: the C# engine starts then, ready before the first check (a
+  // server started without --update has no warm()).
+  motor.start(T, S, motorFailed);
   const reply = (code, body) => {
     res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(body));
